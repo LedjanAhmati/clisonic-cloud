@@ -15,12 +15,11 @@ Author: Ledjan Ahmati (CEO, ABA GmbH)
 
 from __future__ import annotations
 
-import json
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List
 
 
 @dataclass
@@ -352,7 +351,7 @@ if __name__ == "__main__":
     """ + " word " * 2500  # Pad to meet word count
     
     report = validate_article(good_content)
-    print(f"Good content:")
+    print("Good content:")
     print(f"  Passed: {report.passed}")
     print(f"  Score: {report.score:.2f}")
     print(f"  Issues: {len(report.issues)}")
@@ -373,9 +372,9 @@ if __name__ == "__main__":
     """
     
     report = validate_article(bad_content, "blog")
-    print(f"\nBad content:")
+    print("\nBad content:")
     print(f"  Passed: {report.passed}")
     print(f"  Score: {report.score:.2f}")
-    print(f"  Issues:")
+    print("  Issues:")
     for issue in report.issues:
         print(f"    - {issue}")

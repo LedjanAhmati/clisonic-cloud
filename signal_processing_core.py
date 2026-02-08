@@ -26,17 +26,13 @@ import numpy as np
 # SciPy for signal processing
 try:
     from scipy import signal
-    from scipy.fft import fft, fftfreq
     SCIPY_AVAILABLE = True
 except ImportError:
     SCIPY_AVAILABLE = False
 
 # MNE for EEG-specific processing
-try:
-    import mne
-    MNE_AVAILABLE = True
-except ImportError:
-    MNE_AVAILABLE = False
+import importlib.util
+MNE_AVAILABLE = importlib.util.find_spec("mne") is not None
 
 
 class FrequencyBand(Enum):

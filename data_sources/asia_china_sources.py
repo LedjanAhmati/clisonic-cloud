@@ -17,8 +17,9 @@ Categories:
 """
 
 from dataclasses import dataclass
-from typing import List, Dict, Any
 from enum import Enum
+from typing import List
+
 
 class SourceCategory(Enum):
     GOVERNMENT = "government"
@@ -856,4 +857,4 @@ def get_api_sources() -> List[DataSource]:
 
 # Statistics
 print(f"Total Asia/China Sources: {len(ALL_ASIA_CHINA_SOURCES)}")
-print(f"Countries covered: CN, JP, KR, TW, HK, MN, SG")
+print("Countries covered: CN, JP, KR, TW, HK, MN, SG")
