@@ -7,13 +7,14 @@ Core engine for managing and orchestrating labor/computational workloads
 using deterministic array-based algorithms.
 """
 
-import numpy as np
-from typing import Dict, List, Any, Optional, Tuple, Callable
+import hashlib
+import struct
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import hashlib
-import struct
+from typing import Any, Dict, List, Optional
+
+import numpy as np
 
 try:
     import cbor2
@@ -273,7 +274,7 @@ class ArtificialLaborEngine:
         self.processing_history.append({
             'timestamp': datetime.utcnow().isoformat(),
             'batch_size': len(processed),
-            'indices': batch_indices.tolist()
+            'indices': batch_indices
         })
         
         return {

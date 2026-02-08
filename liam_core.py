@@ -7,12 +7,12 @@ Core engine using vectorized operations, matrix algebra, and binary computation
 for high-performance data processing without traditional loops.
 """
 
-import numpy as np
-from typing import Dict, List, Any, Optional, Union, Tuple
+import struct
 from dataclasses import dataclass, field
 from datetime import datetime
-import struct
-import hashlib
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
 
 try:
     import cbor2
@@ -109,7 +109,7 @@ class BinaryAlgebra:
     @staticmethod
     def frobenius_norm(matrix: np.ndarray) -> float:
         """Frobenius norm of matrix"""
-        return np.linalg.norm(matrix, 'fro')
+        return float(np.linalg.norm(matrix, 'fro'))
     
     @staticmethod
     def spectral_decomposition(matrix: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
