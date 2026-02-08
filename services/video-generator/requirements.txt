@@ -1,0 +1,24 @@
+# Video Generator BLERINA - Dependencies
+# =======================================
+
+# FastAPI framework
+fastapi>=0.109.0
+uvicorn>=0.27.0
+pydantic>=2.5.0
+
+# Text-to-Speech
+edge-tts>=6.1.0
+gtts>=2.5.0
+
+# Image generation
+Pillow>=10.0.0
+
+# Audio analysis
+mutagen>=1.47.0
+
+# Video processing (Python interface)
+moviepy>=1.0.3
+
+# HTTP client
+httpx>=0.26.0
+aiofiles>=23.0.0

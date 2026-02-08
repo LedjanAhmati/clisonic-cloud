@@ -574,6 +574,29 @@ services:
     restart: unless-stopped
 
   # ==========================
+  # VIDEO GENERATOR (BLERINA Video Pipeline)
+  # ==========================
+  video-generator:
+    build:
+      context: .
+      dockerfile: services/video-generator/Dockerfile
+    container_name: clisonix-video-generator
+    environment:
+      PYTHONUNBUFFERED: "1"
+      PORT: "8008"
+      VIDEO_OUTPUT_DIR: "/app/generated_videos"
+    ports:
+      - "8008:8008"
+    volumes:
+      - ./data/videos:/app/generated_videos
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8008/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ==========================
   # CORE ENGINES
   # ==========================
 
