@@ -1,15 +1,18 @@
 """
-CLISONIX AUTO-PUBLISHER - 100% Automated Content Pipeline
-==========================================================
+CLISONIX AUTO-PUBLISHER - Quality-First Content Pipeline
+=========================================================
 
-Fully automated system that:
-1. Generates topics based on trends, news, and domain expertise
-2. Creates high-quality documents via Blerina + EAP
-3. Publishes to multiple platforms automatically
-4. Runs 24/7 without human intervention
+UPDATED STRATEGY (February 2026):
+----------------------------------
+Shifted from quantity (50-100/day) to QUALITY:
+- 1 Content Pillar per week (3000-5000 words, deep research)
+- 3-4 Supporting pieces derived from each pillar
+- Real code from repository, real metrics from production
+- Build AUTHORITY, not just volume
 
-Target: 50-100 documents/day across all platforms
-Goal: Make Clisonix known worldwide through valuable content
+For the new Content Pillar strategy, see: content_pillar_strategy.py
+
+This module handles automated distribution of approved content.
 
 Author: Ledjan Ahmati (CEO, ABA GmbH)
 """
@@ -53,10 +56,18 @@ class AutoPublishConfig:
     ollama_url: str = field(default_factory=lambda: os.environ.get("OLLAMA_HOST", "http://localhost:11434"))
     model: str = field(default_factory=lambda: os.environ.get("MODEL", "llama3.1:8b"))
 
-    # Publishing intervals
+    # UPDATED: Quality-first publishing (was 50/day, now weekly pillars)
+    # For high-volume mode, set CONTENT_MODE=volume
+    content_mode: str = field(default_factory=lambda: os.environ.get("CONTENT_MODE", "pillar"))
+    
+    # Pillar mode (default): 1 deep article + 4 supporting pieces per week
+    pillars_per_week: int = 1
+    supporting_pieces_per_pillar: int = 4
+    
+    # Volume mode (legacy): high-volume publishing
     min_interval_seconds: int = 300      # 5 minutes minimum between posts
     max_interval_seconds: int = 1800     # 30 minutes maximum
-    docs_per_day_target: int = 50        # Target documents per day
+    docs_per_day_target: int = 10        # Reduced from 50 - quality over quantity
 
     # Platforms
     linkedin_enabled: bool = True
@@ -86,9 +97,11 @@ class AutoPublishConfig:
     # Content storage
     output_dir: str = "/app/published"
 
-    # Quality thresholds
-    min_quality_score: float = 0.7
-    max_gaps_allowed: int = 2
+    # Quality thresholds - RAISED for authority building
+    min_quality_score: float = 0.85      # Was 0.7 - higher bar for quality
+    max_gaps_allowed: int = 1            # Was 2 - stricter gap tolerance
+    require_real_code: bool = True       # Must use real code from repo
+    require_real_metrics: bool = True    # Must fetch from production
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1526,7 +1539,7 @@ class TwitterPublisher:
             return {"success": False, "error": "Twitter credentials not configured", "platform": "twitter"}
 
         try:
-            import tweepy
+            import tweepy  # type: ignore
             client = tweepy.Client(
                 consumer_key=self.api_key,
                 consumer_secret=self.api_secret,
