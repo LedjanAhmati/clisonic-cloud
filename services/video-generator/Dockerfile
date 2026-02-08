@@ -26,10 +26,10 @@ COPY services/video-generator/main.py /app/
 RUN mkdir -p /app/generated_videos /app/temp
 
 # Expose port
-EXPOSE 8008
+EXPOSE 8029
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-    CMD curl -f http://localhost:8008/health || exit 1
+    CMD curl -f http://localhost:8029/health || exit 1
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8008"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8029"]

@@ -583,14 +583,14 @@ services:
     container_name: clisonix-video-generator
     environment:
       PYTHONUNBUFFERED: "1"
-      PORT: "8008"
+      PORT: "8029"
       VIDEO_OUTPUT_DIR: "/app/generated_videos"
     ports:
-      - "8008:8008"
+      - "8029:8029"
     volumes:
       - ./data/videos:/app/generated_videos
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8008/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8029/health"]
       interval: 30s
       timeout: 10s
       retries: 3
