@@ -4,18 +4,26 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl ffmpeg && rm -rf /var/lib/apt/lists/*
 
-# Kopjo nanogrid + prompts + identity loader + documents
-COPY ocean_nanogrid.py prompts.py requirements-lite.txt identity_loader.py ./
+# Kopjo TË GJITHA modulet e nevojshme për Ocean Core Full
+COPY ocean_core_full.py ocean_nanogrid.py prompts.py identity_loader.py ./
+COPY mega_layer_engine.py real_answer_engine.py service_registry.py ./
+COPY knowledge_layer.py albanian_dictionary.py laboratories.py ./
+COPY translation_node.py cell_registry.py external_apis.py ./
+COPY requirements.txt requirements-lite.txt ./
 COPY documents/ ./documents/
+COPY knowledge_seeds/ ./knowledge_seeds/
+COPY curiosity_algebra/ ./curiosity_algebra/
 
 # Krijo folder për config (do të montohet si volume)
 RUN mkdir -p /app/config
 
-RUN pip install --no-cache-dir -r requirements-lite.txt
+# Përdor requirements.txt të plotë (jo lite)
+RUN pip install --no-cache-dir -r requirements.txt
 
 ENV OCEAN_PORT=8030
 EXPOSE 8030
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD curl -f http://localhost:8030/health || exit 1
 
-CMD ["python", "ocean_nanogrid.py"]
+# Përdor ocean_core_full.py me TË GJITHA LAYERS
+CMD ["python", "ocean_core_full.py"]
