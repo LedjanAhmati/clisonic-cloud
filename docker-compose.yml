@@ -700,10 +700,13 @@ services:
       PORT: "8035"
       YOUTUBE_CHANNEL_ID: "UCuCd7kgikh6CM2hAh5eAIMA"
       YOUTUBE_API_KEY: "${YOUTUBE_API_KEY:-}"
+      VIDEO_GENERATOR_URL: "http://clisonix-video-generator:8029"
     ports:
       - "8035:8035"
     depends_on:
       ollama:
+        condition: service_healthy
+      video-generator:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8035/health"]
