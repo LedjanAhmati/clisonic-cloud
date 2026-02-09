@@ -5,7 +5,7 @@ Premium content access control with Stripe subscriptions.
 ## Subscription Tiers
 
 | Tier | Price | Features |
-|------|-------|----------|
+| ------ | ------- | ---------- |
 | **Free** | 0€ | Public blog posts, Basic docs, Community |
 | **Basic** | 9€/month | Premium articles, Technical deep dives |
 | **Pro** | 29€/month | Whitepapers, Private Discord, Early access |
@@ -14,11 +14,13 @@ Premium content access control with Stripe subscriptions.
 ## API Endpoints
 
 ### Get Tiers
+
 ```bash
 GET /api/tiers
 ```
 
 ### Create Subscription
+
 ```bash
 POST /api/subscribe
 Content-Type: application/json
@@ -30,11 +32,13 @@ Content-Type: application/json
 ```
 
 ### Check Subscription
+
 ```bash
 GET /api/subscription/{email}
 ```
 
 ### Check Content Access
+
 ```bash
 POST /api/access/check
 Content-Type: application/json
@@ -46,6 +50,7 @@ Content-Type: application/json
 ```
 
 ### Set Article Tier (Admin)
+
 ```bash
 POST /api/articles/{article_id}/tier?tier=pro
 ```
