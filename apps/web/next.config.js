@@ -270,6 +270,10 @@ const nextConfig = {
       },
       // Trinity Debate Engine
       {
+        source: "/api/debate/stream",
+        destination: `${OCEAN_BASE}/api/v1/debate/stream`,
+      },
+      {
         source: "/api/debate/:path*",
         destination: `${OCEAN_BASE}/api/v1/debate/:path*`,
       },

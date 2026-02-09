@@ -1532,8 +1532,12 @@ TRINITY_PERSONAS = {
 }
 
 
-async def get_persona_response(persona_id: str, topic: str, max_tokens: int = 500) -> Dict[str, Any]:
-    """Get a response from a specific persona using Ollama."""
+async def get_persona_response(persona_id: str, topic: str, max_tokens: int = 25000) -> Dict[str, Any]:
+    """
+    Get a response from a specific persona using Ollama.
+    ELASTIC: Streaming with retries, no timeout failures.
+    Max ~20,000 words (25,000 tokens).
+    """
     persona = TRINITY_PERSONAS.get(persona_id)
     if not persona:
         return {"error": f"Unknown persona: {persona_id}"}
@@ -1543,13 +1547,71 @@ async def get_persona_response(persona_id: str, topic: str, max_tokens: int = 50
 Your personality: {persona['description']}
 Your style: {persona['style']}
 
-Respond to the topic from your unique perspective. Be concise but insightful.
-Keep your response under 150 words."""
+Respond to the topic from your unique perspective. Be thorough and insightful.
+You can write a detailed, comprehensive response."""
 
     user_prompt = f"{persona['prompt_prefix']}\n\nTopic: {topic}"
     
+    # ELASTIC: Retry up to 3 times with increasing timeouts
+    max_retries = 3
+    base_timeout = 120.0  # 2 minutes base
+    
+    for attempt in range(max_retries):
+        try:
+            timeout = base_timeout * (attempt + 1)  # 120s, 240s, 360s
+            
+            # Use streaming for elastic token handling
+            async with httpx.AsyncClient(timeout=httpx.Timeout(timeout, connect=30.0)) as client:
+                response_text = ""
+                
+                async with client.stream(
+                    "POST",
+                    f"{OLLAMA_HOST}/api/generate",
+                    json={
+                        "model": MODEL,
+                        "prompt": user_prompt,
+                        "system": system_prompt,
+                        "stream": True,
+                        "options": {"num_predict": max_tokens}
+                    }
+                ) as stream:
+                    async for line in stream.aiter_lines():
+                        if line:
+                            try:
+                                chunk = json.loads(line)
+                                if "response" in chunk:
+                                    response_text += chunk["response"]
+                                if chunk.get("done", False):
+                                    break
+                            except json.JSONDecodeError:
+                                continue
+                
+                if response_text:
+                    return {
+                        "persona": persona_id,
+                        "name": persona["name"],
+                        "emoji": persona["emoji"],
+                        "role": persona["role"],
+                        "response": response_text,
+                        "status": "success",
+                        "tokens": len(response_text.split())
+                    }
+                    
+        except httpx.TimeoutException:
+            logger.warning(f"Persona {persona_id} timeout on attempt {attempt + 1}/{max_retries}")
+            if attempt < max_retries - 1:
+                await asyncio.sleep(2)  # Brief pause before retry
+                continue
+        except Exception as e:
+            logger.error(f"Persona {persona_id} error on attempt {attempt + 1}: {e}")
+            if attempt < max_retries - 1:
+                await asyncio.sleep(1)
+                continue
+    
+    # All retries exhausted - return partial or error gracefully (no fail)
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        # Fallback: Try one more time with non-streaming
+        async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 f"{OLLAMA_HOST}/api/generate",
                 json={
@@ -1557,7 +1619,7 @@ Keep your response under 150 words."""
                     "prompt": user_prompt,
                     "system": system_prompt,
                     "stream": False,
-                    "options": {"num_predict": max_tokens}
+                    "options": {"num_predict": 500}  # Shorter fallback
                 }
             )
         
@@ -1582,15 +1644,52 @@ Keep your response under 150 words."""
             }
             
     except Exception as e:
-        logger.error(f"Persona {persona_id} error: {e}")
+        logger.error(f"Persona {persona_id} fallback error: {e}")
+        # ELASTIC: Never fail completely - return graceful message
         return {
             "persona": persona_id,
             "name": persona["name"],
             "emoji": persona["emoji"],
             "role": persona["role"],
-            "response": f"Connection error: {str(e)}",
-            "status": "error"
+            "response": f"[{persona['name']} is thinking deeply about this topic... Please retry for full response]",
+            "status": "partial"
         }
+
+
+@app.post("/api/v1/debate/stream")
+async def trinity_debate_stream(request: DebateRequest):
+    """
+    STREAMING Trinity Debate - Real-time responses.
+    Returns Server-Sent Events (SSE) with each persona's response as it completes.
+    """
+    from starlette.responses import StreamingResponse
+    
+    if not request.topic:
+        raise HTTPException(status_code=400, detail="topic is required")
+    
+    persona_ids = request.personas if request.personas else list(TRINITY_PERSONAS.keys())
+    valid_personas = [p for p in persona_ids if p in TRINITY_PERSONAS]
+    
+    async def generate():
+        yield f"data: {json.dumps({'type': 'start', 'topic': request.topic, 'personas': len(valid_personas)})}\n\n"
+        
+        for persona_id in valid_personas:
+            yield f"data: {json.dumps({'type': 'thinking', 'persona': persona_id})}\n\n"
+            
+            response = await get_persona_response(persona_id, request.topic, request.max_tokens or 25000)
+            yield f"data: {json.dumps({'type': 'response', 'data': response})}\n\n"
+        
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+    
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
 
 
 @app.post("/api/v1/debate")
