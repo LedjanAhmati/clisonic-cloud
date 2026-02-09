@@ -16,7 +16,7 @@ We're transitioning from **high-volume publishing** (50-100 articles/day) to a *
 
 ### The Content Pillar Model
 
-```
+...
 Week N:
   └── 📖 PILLAR ARTICLE (3000-5000 words)
        │   Deep, authoritative, expert-level content
@@ -34,7 +34,7 @@ Week N:
        │
        └── 🐦 Social Thread
            5-8 posts for LinkedIn/Twitter
-```
+...
 
 ## 📅 6-Week Content Calendar
 
@@ -61,7 +61,7 @@ python services/content-factory/content_pillar_strategy.py
 
 ### Output Structure
 
-```
+...
 /app/pillars/
   └── pillar_eeg_clinical_validation_20260208.json
        ├── pillar (main article)
@@ -69,7 +69,7 @@ python services/content-factory/content_pillar_strategy.py
        ├── code_snippets (real code extracted)
        ├── metrics (live production data)
        └── quality_score
-```
+...
 
 ## 🎯 Quality Requirements
 
