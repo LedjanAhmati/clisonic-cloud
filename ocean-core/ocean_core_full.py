@@ -991,6 +991,215 @@ async def list_data_sources():
 
 
 # ═══════════════════════════════════════════════════════════════════
+# WEB BROWSING & SEARCH ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════
+
+@app.get("/api/v1/browse")
+async def browse_webpage(url: str, max_chars: int = 8000):
+    """
+    Fetch and extract main content from a webpage.
+    Returns clean text for AI processing.
+    """
+    try:
+        if not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+        
+        headers = {
+            "User-Agent": "Clisonix-Ocean/5.0 (research@clisonix.com)",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9"
+        }
+        
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            response = await client.get(url, headers=headers)
+        
+        if response.status_code != 200:
+            return {"error": f"Failed to fetch URL: {response.status_code}", "url": url}
+        
+        html = response.text
+        
+        # Simple HTML to text extraction
+        import re
+        # Remove script and style
+        html = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
+        html = re.sub(r'<style[^>]*>.*?</style>', '', html, flags=re.DOTALL | re.IGNORECASE)
+        html = re.sub(r'<nav[^>]*>.*?</nav>', '', html, flags=re.DOTALL | re.IGNORECASE)
+        html = re.sub(r'<footer[^>]*>.*?</footer>', '', html, flags=re.DOTALL | re.IGNORECASE)
+        
+        # Extract title
+        title_match = re.search(r'<title[^>]*>(.*?)</title>', html, re.IGNORECASE | re.DOTALL)
+        title = title_match.group(1).strip() if title_match else url
+        
+        # Extract meta description
+        desc_match = re.search(r'<meta[^>]*name=["\']description["\'][^>]*content=["\']([^"\']+)["\']', html, re.IGNORECASE)
+        description = desc_match.group(1) if desc_match else ""
+        
+        # Remove all HTML tags
+        text = re.sub(r'<[^>]+>', ' ', html)
+        # Normalize whitespace
+        text = re.sub(r'\s+', ' ', text).strip()
+        # Truncate
+        text = text[:max_chars]
+        
+        return {
+            "url": url,
+            "title": title,
+            "description": description,
+            "content": text,
+            "char_count": len(text),
+            "status": "success"
+        }
+        
+    except Exception as e:
+        logger.error(f"Browse error: {e}")
+        return {"error": str(e), "url": url}
+
+
+@app.get("/api/v1/search")
+async def web_search(q: str, num: int = 5):
+    """
+    Search the web using DuckDuckGo HTML (no API key required).
+    Returns search results with titles, URLs, and snippets.
+    """
+    try:
+        import urllib.parse
+        encoded_query = urllib.parse.quote(q)
+        
+        # DuckDuckGo HTML search
+        search_url = f"https://html.duckduckgo.com/html/?q={encoded_query}"
+        
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml",
+            "Accept-Language": "en-US,en;q=0.9"
+        }
+        
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+            response = await client.get(search_url, headers=headers)
+        
+        if response.status_code != 200:
+            return {"error": "Search failed", "status": response.status_code}
+        
+        html = response.text
+        
+        # Parse DuckDuckGo results
+        import re
+        results = []
+        
+        # Find result blocks
+        result_pattern = r'<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>(.*?)</a>.*?<a[^>]*class="result__snippet"[^>]*>(.*?)</a>'
+        matches = re.findall(result_pattern, html, re.DOTALL | re.IGNORECASE)
+        
+        for match in matches[:num]:
+            url = match[0]
+            # DuckDuckGo wraps URLs - extract actual URL
+            if 'uddg=' in url:
+                url_match = re.search(r'uddg=([^&]+)', url)
+                if url_match:
+                    url = urllib.parse.unquote(url_match.group(1))
+            
+            title = re.sub(r'<[^>]+>', '', match[1]).strip()
+            snippet = re.sub(r'<[^>]+>', '', match[2]).strip()
+            
+            if url and title:
+                results.append({
+                    "title": title,
+                    "url": url,
+                    "snippet": snippet
+                })
+        
+        # If no results from pattern, try simpler extraction
+        if not results:
+            simple_pattern = r'<a[^>]*href="(https?://[^"]+)"[^>]*>([^<]+)</a>'
+            for match in re.findall(simple_pattern, html)[:num]:
+                url, title = match
+                if 'duckduckgo' not in url.lower() and len(title) > 5:
+                    results.append({"title": title, "url": url, "snippet": ""})
+        
+        return {
+            "query": q,
+            "total_results": len(results),
+            "results": results,
+            "source": "duckduckgo"
+        }
+        
+    except Exception as e:
+        logger.error(f"Search error: {e}")
+        return {"error": str(e), "query": q}
+
+
+class WebChatRequest(BaseModel):
+    url: str
+    message: str
+
+
+@app.post("/api/v1/chat/browse")
+async def chat_with_webpage(request: WebChatRequest):
+    """
+    Chat about a webpage - fetch content and answer questions using LLM.
+    """
+    try:
+        # First, browse the page
+        browse_result = await browse_webpage(request.url, max_chars=6000)
+        
+        if "error" in browse_result:
+            return {"error": browse_result["error"], "url": request.url}
+        
+        page_content = browse_result.get("content", "")
+        page_title = browse_result.get("title", request.url)
+        
+        if not page_content:
+            return {"error": "Could not extract content from page", "url": request.url}
+        
+        # Create prompt with webpage context
+        system_prompt = f"""You are a helpful assistant analyzing a webpage.
+
+Page Title: {page_title}
+Page URL: {request.url}
+
+Page Content:
+{page_content[:5000]}
+
+Answer the user's question based on this webpage content. Be concise and accurate."""
+
+        # Call Ollama
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                ollama_response = await client.post(
+                    f"{OLLAMA_HOST}/api/generate",
+                    json={
+                        "model": OLLAMA_MODEL,
+                        "prompt": request.message,
+                        "system": system_prompt,
+                        "stream": False
+                    }
+                )
+                
+            if ollama_response.status_code == 200:
+                data = ollama_response.json()
+                answer = data.get("response", "I couldn't generate a response.")
+            else:
+                answer = f"LLM error: {ollama_response.status_code}"
+                
+        except Exception as e:
+            logger.error(f"Ollama error in chat/browse: {e}")
+            answer = f"LLM connection error: {str(e)}"
+        
+        return {
+            "url": request.url,
+            "title": page_title,
+            "question": request.message,
+            "answer": answer,
+            "content_length": len(page_content),
+            "status": "success"
+        }
+        
+    except Exception as e:
+        logger.error(f"Chat browse error: {e}")
+        return {"error": str(e), "url": request.url}
+
+
+# ═══════════════════════════════════════════════════════════════════
 # MAIN
 # ═══════════════════════════════════════════════════════════════════
 
