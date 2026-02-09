@@ -712,6 +712,26 @@ services:
       retries: 3
     restart: unless-stopped
 
+  # BLOG PAYWALL (Stripe Subscription Service)
+  blog-paywall:
+    build:
+      context: .
+      dockerfile: services/blog-paywall/Dockerfile
+    container_name: clisonix-blog-paywall
+    environment:
+      PYTHONUNBUFFERED: "1"
+      PORT: "8020"
+      STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY:-}"
+      STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET:-}"
+    ports:
+      - "8020:8020"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8020/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
   # SAAS-API (Multi-tenant SaaS Platform)
   saas-api:
     build:
