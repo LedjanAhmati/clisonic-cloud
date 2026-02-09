@@ -1,14 +1,6 @@
 'use client'
-/**
- * ZÜRICH DETERMINISTIC ENGINE
- * ===========================
- * 
- * 9-Stage Logic-Based Reasoning - No AI Randomness
- * From Harmonic Integration
- */
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
 
 interface ZurichResponse {
   ok: boolean
@@ -20,42 +12,24 @@ interface ZurichResponse {
   engine: string
 }
 
-interface ZurichInfo {
-  name: string
-  version: string
-  type: string
-  stages: string[]
-  features: string[]
-  response_time: string
-}
-
 const STAGES = [
-  { icon: '📥', name: 'Input Parsing', desc: 'Tokenize and structure the input' },
-  { icon: '🏷️', name: 'Classification', desc: 'Identify intent and domain' },
-  { icon: '🧩', name: 'Decomposition', desc: 'Break into sub-problems' },
-  { icon: '📚', name: 'Knowledge Retrieval', desc: 'Fetch relevant patterns' },
-  { icon: '⚙️', name: 'Rule Application', desc: 'Apply domain-specific rules' },
-  { icon: '🔗', name: 'Synthesis', desc: 'Combine partial solutions' },
-  { icon: '✅', name: 'Validation', desc: 'Check consistency and logic' },
-  { icon: '🎨', name: 'Formatting', desc: 'Structure the response' },
-  { icon: '📤', name: 'Output Generation', desc: 'Final deterministic output' },
+  { num: 1, name: 'Parse' },
+  { num: 2, name: 'Classify' },
+  { num: 3, name: 'Decompose' },
+  { num: 4, name: 'Retrieve' },
+  { num: 5, name: 'Apply' },
+  { num: 6, name: 'Synthesize' },
+  { num: 7, name: 'Validate' },
+  { num: 8, name: 'Format' },
+  { num: 9, name: 'Output' },
 ]
 
 export default function ZurichPage() {
   const [query, setQuery] = useState('')
   const [response, setResponse] = useState<ZurichResponse | null>(null)
-  const [info, setInfo] = useState<ZurichInfo | null>(null)
   const [loading, setLoading] = useState(false)
   const [activeStage, setActiveStage] = useState(-1)
   const [error, setError] = useState<string | null>(null)
-
-  // Fetch engine info on mount
-  useState(() => {
-    fetch('/api/zurich/info')
-      .then(res => res.json())
-      .then(data => setInfo(data))
-      .catch(err => console.error('Failed to fetch Zürich info:', err))
-  })
 
   const processQuery = async () => {
     if (!query.trim()) return
@@ -64,10 +38,9 @@ export default function ZurichPage() {
     setError(null)
     setResponse(null)
     
-    // Animate through stages
     for (let i = 0; i < 9; i++) {
       setActiveStage(i)
-      await new Promise(r => setTimeout(r, 100))
+      await new Promise(r => setTimeout(r, 80))
     }
     
     try {
@@ -77,162 +50,146 @@ export default function ZurichPage() {
         body: JSON.stringify({ prompt: query })
       })
       
-      if (!res.ok) throw new Error('Zürich Engine error')
+      if (!res.ok) throw new Error('Engine error')
       
       const data = await res.json()
       setResponse(data)
-      setActiveStage(-1)
-    } catch (err) {
-      setError('Nuk u lidh me Zürich Engine')
-      setActiveStage(-1)
+    } catch {
+      setError('Connection failed')
     } finally {
+      setActiveStage(-1)
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100">
       {/* Header */}
-      <div className="border-b border-white/10 bg-black/20 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-amber-500/30">
+      <header className="border-b border-zinc-800">
+        <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-zinc-800 rounded-lg flex items-center justify-center text-lg">
               🎯
             </div>
             <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
-                Zürich Deterministic Engine
-              </h1>
-              <p className="text-sm text-slate-400">
-                {info ? `v${info.version} • ${info.type}` : '9-Stage Logic-Based Reasoning'}
-              </p>
+              <h1 className="text-lg font-semibold text-zinc-100">Zürich Engine</h1>
+              <p className="text-xs text-zinc-500">Deterministic 9-Stage Reasoning</p>
             </div>
           </div>
+          <a href="/modules" className="text-sm text-zinc-500 hover:text-zinc-300">
+            ← Back
+          </a>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid lg:grid-cols-3 gap-8">
+      <main className="max-w-6xl mx-auto px-6 py-8">
+        <div className="grid lg:grid-cols-4 gap-8">
           
-          {/* Left: 9-Stage Pipeline */}
+          {/* Pipeline */}
           <div className="lg:col-span-1">
-            <h2 className="text-lg font-semibold mb-4 text-amber-400">Pipeline Stages</h2>
-            <div className="space-y-2">
+            <div className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-4">
+              Pipeline
+            </div>
+            <div className="space-y-1">
               {STAGES.map((stage, i) => (
-                <motion.div
+                <div
                   key={i}
-                  animate={{
-                    scale: activeStage === i ? 1.02 : 1,
-                    backgroundColor: activeStage === i ? 'rgba(251, 191, 36, 0.2)' : 'rgba(255,255,255,0.05)'
-                  }}
-                  className="flex items-center gap-3 p-3 rounded-xl border border-white/10"
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                    activeStage === i 
+                      ? 'bg-blue-500/10 text-blue-400' 
+                      : activeStage > i 
+                        ? 'text-zinc-400' 
+                        : 'text-zinc-600'
+                  }`}
                 >
-                  <span className="text-xl">{stage.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium">{stage.name}</div>
-                    <div className="text-xs text-slate-500 truncate">{stage.desc}</div>
-                  </div>
+                  <span className={`w-5 h-5 rounded text-xs flex items-center justify-center ${
+                    activeStage === i 
+                      ? 'bg-blue-500 text-white' 
+                      : activeStage > i 
+                        ? 'bg-zinc-700 text-zinc-400' 
+                        : 'bg-zinc-800 text-zinc-600'
+                  }`}>
+                    {activeStage > i ? '✓' : stage.num}
+                  </span>
+                  <span>{stage.name}</span>
                   {activeStage === i && (
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ repeat: Infinity, duration: 1 }}
-                      className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full"
-                    />
+                    <span className="ml-auto w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />
                   )}
-                  {activeStage > i && (
-                    <span className="text-green-400">✓</span>
-                  )}
-                </motion.div>
+                </div>
               ))}
             </div>
           </div>
 
-          {/* Right: Input & Output */}
-          <div className="lg:col-span-2 space-y-6">
+          {/* Main */}
+          <div className="lg:col-span-3 space-y-6">
             
             {/* Input */}
-            <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
-              <h2 className="text-lg font-semibold mb-4">Query Input</h2>
+            <div className="bg-zinc-900 rounded-xl p-5 border border-zinc-800">
               <textarea
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Shkruaj pyetjen tënde këtu... p.sh. 'Si të ndërtoj një startup AI të suksesshëm?'"
-                className="w-full h-32 bg-black/30 border border-white/20 rounded-xl p-4 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 resize-none"
+                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), processQuery())}
+                placeholder="Enter your query for deterministic analysis..."
+                className="w-full h-28 bg-transparent text-zinc-100 placeholder-zinc-600 focus:outline-none resize-none text-sm"
               />
-              <div className="flex items-center justify-between mt-4">
-                <div className="text-sm text-slate-500">
-                  {query.length} karaktere
-                </div>
+              <div className="flex items-center justify-between pt-4 border-t border-zinc-800">
+                <span className="text-xs text-zinc-600">{query.length} chars</span>
                 <button
                   onClick={processQuery}
                   disabled={loading || !query.trim()}
-                  className="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-medium rounded-xl hover:shadow-lg hover:shadow-amber-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2 bg-zinc-100 text-zinc-900 text-sm font-medium rounded-lg hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  {loading ? 'Duke procesuar...' : '🎯 Proceso me Zürich'}
+                  {loading ? 'Processing...' : 'Analyze'}
                 </button>
               </div>
             </div>
 
             {/* Error */}
             {error && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400">
+              <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4 text-red-400 text-sm">
                 {error}
               </div>
             )}
 
             {/* Output */}
             {response && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white/5 rounded-2xl p-6 border border-white/10"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold">Rezultati</h2>
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="text-amber-400">
-                      ⚡ {response.processing_time_ms.toFixed(2)}ms
-                    </span>
-                    <span className="text-green-400">
-                      🎯 {(response.confidence * 100).toFixed(0)}% konfidencë
-                    </span>
+              <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
+                <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
+                  <span className="text-sm font-medium text-zinc-300">Result</span>
+                  <div className="flex items-center gap-4 text-xs text-zinc-500">
+                    <span>{response.processing_time_ms.toFixed(2)}ms</span>
+                    <span>{(response.confidence * 100).toFixed(0)}% confidence</span>
                   </div>
                 </div>
-                
-                {/* Metadata */}
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <span className="px-2 py-1 bg-amber-500/20 text-amber-400 text-xs rounded-lg">
-                    Strategjia: {response.strategy}
-                  </span>
-                  {response.domains.map(d => (
-                    <span key={d} className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-lg">
-                      {d}
+                <div className="p-5">
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    <span className="px-2 py-1 bg-zinc-800 text-zinc-400 text-xs rounded">
+                      {response.strategy}
                     </span>
-                  ))}
-                </div>
-
-                {/* Output content */}
-                <div className="bg-black/30 rounded-xl p-4 prose prose-invert prose-sm max-w-none">
-                  <pre className="whitespace-pre-wrap text-slate-300 font-mono text-sm">
+                    {response.domains.map(d => (
+                      <span key={d} className="px-2 py-1 bg-zinc-800 text-zinc-400 text-xs rounded">
+                        {d}
+                      </span>
+                    ))}
+                  </div>
+                  <pre className="whitespace-pre-wrap text-zinc-300 text-sm font-mono leading-relaxed">
                     {response.output}
                   </pre>
                 </div>
-              </motion.div>
+              </div>
             )}
 
-            {/* Features */}
-            {info && (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {info.features.map((f, i) => (
-                  <div key={i} className="bg-white/5 rounded-xl p-3 border border-white/10 text-center">
-                    <div className="text-xs text-slate-400">{f}</div>
-                  </div>
-                ))}
+            {/* Empty */}
+            {!response && !loading && !error && (
+              <div className="text-center py-16 text-zinc-600">
+                <div className="text-4xl mb-3">🎯</div>
+                <p className="text-sm">Enter a query for deterministic analysis</p>
+                <p className="text-xs text-zinc-700 mt-1">No AI randomness • Reproducible results</p>
               </div>
             )}
           </div>
         </div>
-      </div>
+      </main>
     </div>
   )
 }

@@ -1,23 +1,6 @@
 'use client'
-/**
- * TRINITY DEBATE - Multi-Persona AI Discussion
- * =============================================
- * 
- * 5 AI Personas debate any topic
- * From Harmonic Integration
- */
 
-import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-
-interface Persona {
-  id: string
-  name: string
-  emoji: string
-  role: string
-  style: string
-  focus: string
-}
+import { useState } from 'react'
 
 interface DebateResponse {
   persona: string
@@ -32,43 +15,24 @@ interface DebateResult {
   ok: boolean
   topic: string
   responses: DebateResponse[]
-  total_responses: number
   successful: number
   failed: number
 }
 
-const PERSONA_COLORS: Record<string, string> = {
-  alba: 'from-amber-500 to-orange-500',
-  albi: 'from-slate-500 to-zinc-600',
-  jona: 'from-purple-500 to-indigo-600',
-  blerina: 'from-pink-500 to-rose-600',
-  asi: 'from-cyan-500 to-blue-600',
-}
-
-const PERSONA_BG: Record<string, string> = {
-  alba: 'bg-amber-500/10 border-amber-500/30',
-  albi: 'bg-slate-500/10 border-slate-500/30',
-  jona: 'bg-purple-500/10 border-purple-500/30',
-  blerina: 'bg-pink-500/10 border-pink-500/30',
-  asi: 'bg-cyan-500/10 border-cyan-500/30',
-}
+const PERSONAS = [
+  { id: 'alba', name: 'Alba', emoji: '🌅', role: 'Optimist' },
+  { id: 'albi', name: 'Albi', emoji: '🔧', role: 'Pragmatist' },
+  { id: 'jona', name: 'Jona', emoji: '🔍', role: 'Skeptic' },
+  { id: 'blerina', name: 'Blerina', emoji: '💡', role: 'Analyst' },
+  { id: 'asi', name: 'ASI', emoji: '🧠', role: 'Meta-Thinker' },
+]
 
 export default function DebatePage() {
   const [topic, setTopic] = useState('')
-  const [personas, setPersonas] = useState<Persona[]>([])
   const [debate, setDebate] = useState<DebateResult | null>(null)
   const [loading, setLoading] = useState(false)
-  const [currentSpeaker, setCurrentSpeaker] = useState<string | null>(null)
+  const [activeSpeaker, setActiveSpeaker] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const debateRef = useRef<HTMLDivElement>(null)
-
-  // Fetch personas on mount
-  useEffect(() => {
-    fetch('/api/debate/personas')
-      .then(res => res.json())
-      .then(data => setPersonas(data.personas || []))
-      .catch(err => console.error('Failed to fetch personas:', err))
-  }, [])
 
   const startDebate = async () => {
     if (!topic.trim()) return
@@ -77,11 +41,9 @@ export default function DebatePage() {
     setError(null)
     setDebate(null)
     
-    // Animate speakers
-    const speakerOrder = ['alba', 'albi', 'jona', 'blerina', 'asi']
-    for (const speaker of speakerOrder) {
-      setCurrentSpeaker(speaker)
-      await new Promise(r => setTimeout(r, 800))
+    for (const p of PERSONAS) {
+      setActiveSpeaker(p.id)
+      await new Promise(r => setTimeout(r, 600))
     }
     
     try {
@@ -91,189 +53,148 @@ export default function DebatePage() {
         body: JSON.stringify({ topic })
       })
       
-      if (!res.ok) throw new Error('Debate Engine error')
+      if (!res.ok) throw new Error('Debate failed')
       
       const data = await res.json()
       setDebate(data)
-      setCurrentSpeaker(null)
-      
-      // Scroll to debate
-      setTimeout(() => {
-        debateRef.current?.scrollIntoView({ behavior: 'smooth' })
-      }, 100)
-    } catch (err) {
-      setError('Nuk u lidh me Trinity Debate Engine')
-      setCurrentSpeaker(null)
+    } catch {
+      setError('Failed to connect to debate engine')
     } finally {
+      setActiveSpeaker(null)
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 text-white">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100">
       {/* Header */}
-      <div className="border-b border-white/10 bg-black/20 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-purple-500/30">
+      <header className="border-b border-zinc-800">
+        <div className="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-zinc-800 rounded-lg flex items-center justify-center text-lg">
               🎭
             </div>
             <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">
-                Trinity Debate Engine
-              </h1>
-              <p className="text-sm text-slate-400">
-                5 AI Personas • Multi-Perspective Discussion
-              </p>
+              <h1 className="text-lg font-semibold text-zinc-100">Trinity Debate</h1>
+              <p className="text-xs text-zinc-500">5 AI Perspectives • One Topic</p>
             </div>
           </div>
+          <a href="/modules" className="text-sm text-zinc-500 hover:text-zinc-300">
+            ← Back
+          </a>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <main className="max-w-5xl mx-auto px-6 py-8">
         
-        {/* Personas Grid */}
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold mb-4 text-purple-400">The Council</h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {personas.map((p) => (
-              <motion.div
-                key={p.id}
-                animate={{
-                  scale: currentSpeaker === p.id ? 1.05 : 1,
-                  boxShadow: currentSpeaker === p.id ? '0 0 30px rgba(168, 85, 247, 0.4)' : 'none'
-                }}
-                className={`relative p-4 rounded-2xl border ${PERSONA_BG[p.id] || 'bg-white/5 border-white/10'} text-center transition-all`}
-              >
-                {currentSpeaker === p.id && (
-                  <motion.div
-                    animate={{ opacity: [0.5, 1, 0.5] }}
-                    transition={{ repeat: Infinity, duration: 1.5 }}
-                    className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-transparent rounded-2xl"
-                  />
-                )}
-                <div className="text-4xl mb-2">{p.emoji}</div>
-                <div className="font-semibold">{p.name}</div>
-                <div className="text-xs text-slate-400">{p.role}</div>
-                {currentSpeaker === p.id && (
-                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center text-xs animate-pulse">
-                    🎤
-                  </div>
-                )}
-              </motion.div>
-            ))}
-          </div>
+        {/* Personas */}
+        <div className="grid grid-cols-5 gap-3 mb-8">
+          {PERSONAS.map((p) => (
+            <div
+              key={p.id}
+              className={`text-center p-4 rounded-xl border transition-all ${
+                activeSpeaker === p.id 
+                  ? 'bg-zinc-800 border-zinc-600' 
+                  : 'bg-zinc-900 border-zinc-800'
+              }`}
+            >
+              <div className="text-2xl mb-2">{p.emoji}</div>
+              <div className="text-sm font-medium text-zinc-200">{p.name}</div>
+              <div className="text-xs text-zinc-500">{p.role}</div>
+              {activeSpeaker === p.id && (
+                <div className="mt-2 flex justify-center">
+                  <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
-        {/* Topic Input */}
-        <div className="bg-white/5 rounded-2xl p-6 border border-white/10 mb-8">
-          <h2 className="text-lg font-semibold mb-4">Tema e Debatit</h2>
-          <div className="flex gap-4">
-            <input
-              type="text"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && startDebate()}
-              placeholder="Shkruaj një temë për debat... p.sh. 'A duhet AI të zëvendësojë punët e njerëzve?'"
-              className="flex-1 bg-black/30 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-            />
+        {/* Input */}
+        <div className="bg-zinc-900 rounded-xl p-5 border border-zinc-800 mb-6">
+          <input
+            type="text"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && startDebate()}
+            placeholder="Enter a topic for debate..."
+            className="w-full bg-transparent text-zinc-100 placeholder-zinc-600 focus:outline-none text-sm"
+          />
+          <div className="flex items-center justify-between pt-4 mt-4 border-t border-zinc-800">
+            <div className="flex flex-wrap gap-2">
+              {['Future of AI', 'Remote vs Office', 'Privacy vs Security', 'Climate Action'].map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTopic(t)}
+                  className="px-3 py-1.5 bg-zinc-800 text-zinc-400 text-xs rounded-lg hover:bg-zinc-700 hover:text-zinc-300 transition-colors"
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
             <button
               onClick={startDebate}
               disabled={loading || !topic.trim()}
-              className="px-6 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-medium rounded-xl hover:shadow-lg hover:shadow-purple-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              className="px-5 py-2 bg-zinc-100 text-zinc-900 text-sm font-medium rounded-lg hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? 'Duke debatuar...' : '🎭 Fillo Debatin'}
+              {loading ? 'Debating...' : 'Start Debate'}
             </button>
-          </div>
-          
-          {/* Quick topics */}
-          <div className="flex flex-wrap gap-2 mt-4">
-            {[
-              'A është AI e rrezikshme?',
-              'Ardhmëria e punës',
-              'Klima vs Ekonomia',
-              'Edukimi tradicional vs Online',
-              'Privatësia në epokën dixhitale'
-            ].map((t) => (
-              <button
-                key={t}
-                onClick={() => setTopic(t)}
-                className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm text-slate-400 hover:text-white transition-all"
-              >
-                {t}
-              </button>
-            ))}
           </div>
         </div>
 
         {/* Error */}
         {error && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400 mb-8">
+          <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4 text-red-400 text-sm mb-6">
             {error}
           </div>
         )}
 
         {/* Debate Results */}
         {debate && (
-          <div ref={debateRef} className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-purple-400">
-                📜 Debati: "{debate.topic}"
-              </h2>
-              <div className="text-sm text-slate-400">
-                {debate.successful}/{debate.total_responses} përgjigje
-              </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-zinc-400">Topic: <span className="text-zinc-200">{debate.topic}</span></span>
+              <span className="text-zinc-600">{debate.successful}/{debate.responses.length} responses</span>
             </div>
             
-            <AnimatePresence>
-              {debate.responses.map((r, i) => (
-                <motion.div
-                  key={r.persona}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                  className={`rounded-2xl p-5 border ${PERSONA_BG[r.persona] || 'bg-white/5 border-white/10'}`}
-                >
-                  <div className="flex items-start gap-4">
-                    {/* Avatar */}
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${PERSONA_COLORS[r.persona] || 'from-gray-500 to-gray-600'} flex items-center justify-center text-2xl flex-shrink-0`}>
-                      {r.emoji}
-                    </div>
-                    
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="font-semibold">{r.name}</span>
-                        <span className="text-xs text-slate-500">• {r.role}</span>
-                        {r.status === 'error' && (
-                          <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded">
-                            Gabim
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
-                        {r.response || 'Nuk ka përgjigje'}
-                      </div>
-                    </div>
+            {debate.responses.map((r) => (
+              <div
+                key={r.persona}
+                className="bg-zinc-900 rounded-xl p-5 border border-zinc-800"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 bg-zinc-800 rounded-lg flex items-center justify-center text-xl flex-shrink-0">
+                    {r.emoji}
                   </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="font-medium text-zinc-200">{r.name}</span>
+                      <span className="text-xs text-zinc-600">{r.role}</span>
+                      {r.status === 'error' && (
+                        <span className="px-2 py-0.5 bg-red-500/10 text-red-400 text-xs rounded">
+                          Error
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-zinc-400 text-sm leading-relaxed">
+                      {r.response || 'No response'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Empty state */}
-        {!debate && !loading && (
-          <div className="text-center py-16">
-            <div className="text-6xl mb-4">🎭</div>
-            <h3 className="text-xl font-semibold mb-2">Filloni një Debat</h3>
-            <p className="text-slate-400 max-w-md mx-auto">
-              Shkruani një temë dhe 5 persona AI do të diskutojnë nga këndvështrime të ndryshme.
-              Secili sjell perspektivën e tij unike.
-            </p>
+        {/* Empty */}
+        {!debate && !loading && !error && (
+          <div className="text-center py-20 text-zinc-600">
+            <div className="text-5xl mb-4">🎭</div>
+            <p className="text-sm">Enter a topic to start a multi-perspective debate</p>
+            <p className="text-xs text-zinc-700 mt-1">5 AI personas will share their unique viewpoints</p>
           </div>
         )}
-      </div>
+      </main>
     </div>
   )
 }
