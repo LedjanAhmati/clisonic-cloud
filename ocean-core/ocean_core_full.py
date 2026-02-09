@@ -1168,7 +1168,7 @@ Answer the user's question based on this webpage content. Be concise and accurat
                 ollama_response = await client.post(
                     f"{OLLAMA_HOST}/api/generate",
                     json={
-                        "model": OLLAMA_MODEL,
+                        "model": MODEL,
                         "prompt": request.message,
                         "system": system_prompt,
                         "stream": False
