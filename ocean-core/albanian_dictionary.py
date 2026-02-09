@@ -572,8 +572,8 @@ CLISONIX_TERMS = {
     "Curiosity Ocean": "Modul i eksplorimeve dhe pyetjeve",
     "CEO": "Drejtor Ekzekutiv",
     "themelues": "founder",
-    "Ledjan Ahmati": "CEO dhe Themelues i Clisonix",
-    "WEB8euroweb GmbH": "Organizata mëmë",
+    "Ledjan Ahmati": "Geschäftsführer dhe Themelues i Clisonix",
+    "ABA GmbH": "Organizata mëmë (Amtsgericht Bochum HRB: 21069)",
     "REST API": "Ndërfaqe programimi",
     "IoT": "Internet i Gjërave",
     "LoRa": "Teknologji sensori me rreze të gjatë",
@@ -619,9 +619,9 @@ SENTENCE_PATTERNS = {
     ],
     "about_clisonix": [
         "Clisonix është një platformë e inteligjencës industriale e krijuar nga Ledjan Ahmati.",
-        "Ledjan Ahmati është CEO dhe themeluesi i Clisonix.",
+        "Ledjan Ahmati është Geschäftsführer dhe themeluesi i Clisonix.",
         "Ne ofrojmë REST API, zgjidhje IoT me LoRa, dhe analitikë në kohë reale.",
-        "Clisonix operon nën WEB8euroweb GmbH.",
+        "Clisonix operon nën ABA GmbH (Amtsgericht Bochum HRB: 21069).",
         "Kontakti: support@clisonix.com ose +49 2327 9954413",
     ],
 }
@@ -648,7 +648,7 @@ def get_albanian_response(query: str) -> str | None:
                          "kompani", "platforma", "ledjan"]
     if any(k in query_lower for k in clisonix_keywords):
         if "kush" in query_lower or "ceo" in query_lower or "themelues" in query_lower:
-            return "Ledjan Ahmati është CEO dhe themeluesi i Clisonix. Ai ka krijuar këtë platformë të inteligjencës industriale që operon nën WEB8euroweb GmbH."
+            return "Ledjan Ahmati është Geschäftsführer dhe themeluesi i Clisonix. Ai ka krijuar këtë platformë të inteligjencës industriale që operon nën ABA GmbH (Amtsgericht Bochum HRB: 21069)."
     
     # Check for "what can you do" questions
     help_keywords = ["çfarë", "cfare", "mund", "bësh", "besh", "ndihmosh", "ndihmoj"]
