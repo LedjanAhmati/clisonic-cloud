@@ -724,10 +724,11 @@ async def search_arxiv(query: str, max_results: int = 10):
     try:
         import urllib.parse
         encoded_query = urllib.parse.quote(query)
-        arxiv_url = f"http://export.arxiv.org/api/query?search_query=all:{encoded_query}&start=0&max_results={max_results}"
+        arxiv_url = f"https://export.arxiv.org/api/query?search_query=all:{encoded_query}&start=0&max_results={max_results}"
         
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(arxiv_url)
+        headers = {"User-Agent": "Clisonix-Ocean/5.0 (research@clisonix.com)"}
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            response = await client.get(arxiv_url, headers=headers)
             
         if response.status_code != 200:
             return {"error": "ArXiv API error", "status": response.status_code}
@@ -794,8 +795,9 @@ async def search_wikipedia(query: str, limit: int = 10):
         # Wikipedia API for search
         wiki_url = f"https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch={encoded_query}&srlimit={limit}&format=json"
         
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.get(wiki_url)
+        headers = {"User-Agent": "Clisonix-Ocean/5.0 (research@clisonix.com)"}
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+            response = await client.get(wiki_url, headers=headers)
         
         if response.status_code != 200:
             return {"error": "Wikipedia API error", "status": response.status_code}
@@ -842,8 +844,9 @@ async def search_pubmed(query: str, max_results: int = 10):
         # Step 1: Search for IDs
         search_url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term={encoded_query}&retmax={max_results}&retmode=json"
         
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            search_response = await client.get(search_url)
+        headers = {"User-Agent": "Clisonix-Ocean/5.0 (research@clisonix.com)"}
+        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+            search_response = await client.get(search_url, headers=headers)
         
         if search_response.status_code != 200:
             return {"error": "PubMed search error", "status": search_response.status_code}
@@ -858,8 +861,8 @@ async def search_pubmed(query: str, max_results: int = 10):
         ids_str = ",".join(id_list)
         fetch_url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id={ids_str}&retmode=json"
         
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            fetch_response = await client.get(fetch_url)
+        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+            fetch_response = await client.get(fetch_url, headers=headers)
         
         if fetch_response.status_code != 200:
             return {"error": "PubMed fetch error", "status": fetch_response.status_code}
