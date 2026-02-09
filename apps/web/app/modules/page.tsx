@@ -29,11 +29,31 @@ import {
   ExternalLink,
   MessageSquare,
   Globe,
-  Archive
+  Archive,
+  Target,
+  Users
 } from 'lucide-react';
 
 // Module definitions with Lucide icons
 const publicModules = [
+  {
+    id: 'zurich',
+    name: 'Zürich Engine',
+    description: 'Deterministic 9-stage reasoning without AI randomness',
+    icon: Target,
+    category: 'AI Reasoning',
+    href: '/zurich',
+    accent: 'slate'
+  },
+  {
+    id: 'debate',
+    name: 'Trinity Debate',
+    description: '5 AI personas debate any topic from different perspectives',
+    icon: Users,
+    category: 'AI Reasoning',
+    href: '/debate',
+    accent: 'slate'
+  },
   {
     id: 'curiosity-ocean',
     name: 'Curiosity Ocean',
