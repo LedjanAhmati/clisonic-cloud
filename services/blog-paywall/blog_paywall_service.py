@@ -7,7 +7,7 @@ import hashlib
 import logging
 import os
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 from typing import Any
 
@@ -57,7 +57,7 @@ TIER_CONFIG: dict[SubscriptionTier, TierConfig] = {
     ),
     SubscriptionTier.BASIC: TierConfig(
         name="Basic",
-        price_cents=900,  # 9€
+        price_cents=999,  # 9.99€
         currency="eur",
         features=[
             "All Free features",
@@ -65,11 +65,11 @@ TIER_CONFIG: dict[SubscriptionTier, TierConfig] = {
             "Technical deep dives",
             "Monthly newsletter"
         ],
-        stripe_price_id=os.getenv("STRIPE_PRICE_BASIC", "price_basic_placeholder")
+        stripe_price_id=os.getenv("STRIPE_PRICE_BASIC", "price_1Sy86EJQa06Hh2HG4C3FYHhB")
     ),
     SubscriptionTier.PRO: TierConfig(
         name="Pro",
-        price_cents=2900,  # 29€
+        price_cents=2999,  # 29.99€
         currency="eur",
         features=[
             "All Basic features",
@@ -78,7 +78,7 @@ TIER_CONFIG: dict[SubscriptionTier, TierConfig] = {
             "Early access to features",
             "Q&A sessions"
         ],
-        stripe_price_id=os.getenv("STRIPE_PRICE_PRO", "price_pro_placeholder")
+        stripe_price_id=os.getenv("STRIPE_PRICE_PRO", "price_1Sy88IJQa06Hh2HGw2nKvsVP")
     ),
     SubscriptionTier.ENTERPRISE: TierConfig(
         name="Enterprise",
@@ -91,7 +91,7 @@ TIER_CONFIG: dict[SubscriptionTier, TierConfig] = {
             "Priority support",
             "Custom integrations"
         ],
-        stripe_price_id=os.getenv("STRIPE_PRICE_ENTERPRISE", "price_enterprise_placeholder")
+        stripe_price_id=os.getenv("STRIPE_PRICE_ENTERPRISE", "price_1SynwsJQa06Hh2HGPWzx00N0")
     )
 }
 
