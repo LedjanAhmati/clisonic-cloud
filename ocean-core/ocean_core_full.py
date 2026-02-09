@@ -1133,14 +1133,53 @@ class WebChatRequest(BaseModel):
     message: str
 
 
+async def get_web_chat_response(url: str, message: str, page_content: str, page_title: str, timeout: float = 120.0) -> str:
+    """
+    Get LLM response for webpage chat with elastic timeout.
+    Returns the response text or raises exception on failure.
+    """
+    system_prompt = f"""You are a helpful assistant analyzing a webpage.
+
+Page Title: {page_title}
+Page URL: {url}
+
+Page Content:
+{page_content[:8000]}
+
+Answer the user's question based on this webpage content. Be concise, accurate, and helpful.
+If the content doesn't contain the answer, say so honestly."""
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        response = await client.post(
+            f"{OLLAMA_HOST}/api/generate",
+            json={
+                "model": MODEL,
+                "prompt": message,
+                "system": system_prompt,
+                "stream": False,
+                "options": {
+                    "num_predict": 4000,  # Longer responses for web content
+                    "temperature": 0.7
+                }
+            }
+        )
+        
+    if response.status_code == 200:
+        data = response.json()
+        return data.get("response", "I couldn't generate a response.")
+    else:
+        raise Exception(f"LLM error: {response.status_code}")
+
+
 @app.post("/api/v1/chat/browse")
 async def chat_with_webpage(request: WebChatRequest):
     """
     Chat about a webpage - fetch content and answer questions using LLM.
+    ELASTIC: 3 retry attempts with increasing timeouts (120s, 240s, 360s).
     """
     try:
         # First, browse the page
-        browse_result = await browse_webpage(request.url, max_chars=6000)
+        browse_result = await browse_webpage(request.url, max_chars=10000)
         
         if "error" in browse_result:
             return {"error": browse_result["error"], "url": request.url}
@@ -1151,52 +1190,116 @@ async def chat_with_webpage(request: WebChatRequest):
         if not page_content:
             return {"error": "Could not extract content from page", "url": request.url}
         
-        # Create prompt with webpage context
-        system_prompt = f"""You are a helpful assistant analyzing a webpage.
-
-Page Title: {page_title}
-Page URL: {request.url}
-
-Page Content:
-{page_content[:5000]}
-
-Answer the user's question based on this webpage content. Be concise and accurate."""
-
-        # Call Ollama
-        try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                ollama_response = await client.post(
-                    f"{OLLAMA_HOST}/api/generate",
-                    json={
-                        "model": MODEL,
-                        "prompt": request.message,
-                        "system": system_prompt,
-                        "stream": False
-                    }
+        # ELASTIC: 3 retry attempts with increasing timeouts
+        timeouts = [120.0, 240.0, 360.0]
+        answer = None
+        last_error = None
+        attempt = 0
+        
+        for timeout in timeouts:
+            attempt += 1
+            try:
+                logger.info(f"[Web Chat] Attempt {attempt}/3 with {timeout}s timeout for {request.url}")
+                answer = await get_web_chat_response(
+                    request.url, request.message, page_content, page_title, timeout
                 )
-                
-            if ollama_response.status_code == 200:
-                data = ollama_response.json()
-                answer = data.get("response", "I couldn't generate a response.")
-            else:
-                answer = f"LLM error: {ollama_response.status_code}"
-                
-        except Exception as e:
-            logger.error(f"Ollama error in chat/browse: {e}")
-            answer = f"LLM connection error: {str(e)}"
+                logger.info(f"[Web Chat] Success on attempt {attempt}")
+                break
+            except Exception as e:
+                last_error = str(e)
+                logger.warning(f"[Web Chat] Attempt {attempt} failed: {e}")
+                if attempt < len(timeouts):
+                    await asyncio.sleep(1)  # Brief pause before retry
+        
+        # If all attempts failed, return partial response with page summary
+        if answer is None:
+            logger.error(f"[Web Chat] All 3 attempts failed for {request.url}")
+            answer = f"⚠️ LLM response timed out after 3 attempts.\n\n**Page Summary:**\n{page_title}\n\n{page_content[:1000]}..."
         
         return {
             "url": request.url,
             "title": page_title,
             "question": request.message,
             "answer": answer,
+            "response": answer,  # Also provide as 'response' for frontend compatibility
+            "message": answer,   # Also provide as 'message' for frontend compatibility
             "content_length": len(page_content),
-            "status": "success"
+            "status": "success" if "timed out" not in answer else "partial",
+            "attempts": attempt
         }
         
     except Exception as e:
         logger.error(f"Chat browse error: {e}")
         return {"error": str(e), "url": request.url}
+
+
+@app.post("/api/v1/chat/browse/stream")
+async def chat_with_webpage_stream(request: WebChatRequest):
+    """
+    SSE Streaming chat about a webpage - real-time token delivery.
+    """
+    async def generate():
+        try:
+            # First, browse the page
+            browse_result = await browse_webpage(request.url, max_chars=10000)
+            
+            if "error" in browse_result:
+                yield f"data: {json.dumps({'error': browse_result['error']})}\n\n"
+                return
+            
+            page_content = browse_result.get("content", "")
+            page_title = browse_result.get("title", request.url)
+            
+            yield f"data: {json.dumps({'status': 'browsing', 'title': page_title, 'chars': len(page_content)})}\n\n"
+            
+            if not page_content:
+                yield f"data: {json.dumps({'error': 'Could not extract content from page'})}\n\n"
+                return
+            
+            system_prompt = f"""You are a helpful assistant analyzing a webpage.
+
+Page Title: {page_title}
+Page URL: {request.url}
+
+Page Content:
+{page_content[:8000]}
+
+Answer the user's question based on this webpage content. Be concise, accurate, and helpful."""
+
+            yield f"data: {json.dumps({'status': 'thinking'})}\n\n"
+            
+            # Stream from Ollama
+            async with httpx.AsyncClient(timeout=300.0) as client:
+                async with client.stream(
+                    "POST",
+                    f"{OLLAMA_HOST}/api/generate",
+                    json={
+                        "model": MODEL,
+                        "prompt": request.message,
+                        "system": system_prompt,
+                        "stream": True,
+                        "options": {"num_predict": 4000, "temperature": 0.7}
+                    }
+                ) as response:
+                    full_response = ""
+                    async for line in response.aiter_lines():
+                        if line:
+                            try:
+                                data = json.loads(line)
+                                token = data.get("response", "")
+                                if token:
+                                    full_response += token
+                                    yield f"data: {json.dumps({'token': token, 'status': 'streaming'})}\n\n"
+                                if data.get("done"):
+                                    yield f"data: {json.dumps({'status': 'complete', 'total_chars': len(full_response)})}\n\n"
+                            except json.JSONDecodeError:
+                                pass
+                                
+        except Exception as e:
+            logger.error(f"Stream chat browse error: {e}")
+            yield f"data: {json.dumps({'error': str(e), 'status': 'error'})}\n\n"
+    
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 
 # ═══════════════════════════════════════════════════════════════════

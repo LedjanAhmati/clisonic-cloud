@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, FormEvent } from 'react'
+import { useState, FormEvent, useRef } from 'react'
 
 const API_PROXY = '/api/ocean/web-reader'
 
@@ -20,6 +20,7 @@ interface ChatMessage {
   id: number
   sender: 'user' | 'bot'
   text: string
+  status?: 'streaming' | 'complete' | 'error'
 }
 
 export default function WebReaderPage() {
@@ -40,6 +41,8 @@ export default function WebReaderPage() {
   const [chatMessage, setChatMessage] = useState('')
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatLoading, setChatLoading] = useState(false)
+  const [chatStatus, setChatStatus] = useState('')
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   const [error, setError] = useState('')
 
@@ -89,31 +92,135 @@ export default function WebReaderPage() {
     }
   }
 
-  // ─── Chat with webpage ───
+  // ─── Chat with webpage (ELASTIC STREAMING) ───
   async function handleChat(e: FormEvent) {
     e.preventDefault()
     if (!chatUrl.trim() || !chatMessage.trim()) return
     setError('')
     setChatLoading(true)
+    setChatStatus('Connecting...')
 
     const userMsg: ChatMessage = { id: Date.now(), sender: 'user', text: chatMessage }
     setChatMessages(prev => [...prev, userMsg])
     const msg = chatMessage
     setChatMessage('')
 
+    // Add bot message placeholder for streaming
+    const botMsgId = Date.now() + 1
+    setChatMessages(prev => [...prev, { id: botMsgId, sender: 'bot', text: '', status: 'streaming' }])
+
     try {
-      const res = await fetch(API_PROXY, {
+      // Try streaming first
+      abortControllerRef.current = new AbortController()
+      
+      const res = await fetch('/api/ocean/web-reader/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'chat', url: chatUrl, message: msg }),
+        signal: abortControllerRef.current.signal
       })
-      const json = await res.json()
-      const reply = json.data?.response || json.data?.message || json.error || 'No response'
-      setChatMessages(prev => [...prev, { id: Date.now() + 1, sender: 'bot', text: reply }])
-    } catch {
-      setChatMessages(prev => [...prev, { id: Date.now() + 1, sender: 'bot', text: 'Connection error' }])
+
+      if (!res.ok || !res.body) {
+        // Fallback to non-streaming
+        const fallbackRes = await fetch(API_PROXY, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'chat', url: chatUrl, message: msg }),
+        })
+        const json = await fallbackRes.json()
+        const reply = json.data?.response || json.data?.answer || json.data?.message || json.error || 'No response'
+        setChatMessages(prev => prev.map(m => 
+          m.id === botMsgId ? { ...m, text: reply, status: 'complete' } : m
+        ))
+        setChatLoading(false)
+        setChatStatus('')
+        return
+      }
+
+      // SSE Streaming
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let fullText = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split('\n')
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              
+              if (data.status === 'browsing') {
+                setChatStatus(`📖 Reading page: ${data.title || 'Loading...'}`)
+              } else if (data.status === 'thinking') {
+                setChatStatus('🧠 Analyzing content...')
+              } else if (data.token) {
+                fullText += data.token
+                setChatMessages(prev => prev.map(m => 
+                  m.id === botMsgId ? { ...m, text: fullText, status: 'streaming' } : m
+                ))
+                setChatStatus('💬 Responding...')
+              } else if (data.status === 'complete') {
+                setChatMessages(prev => prev.map(m => 
+                  m.id === botMsgId ? { ...m, status: 'complete' } : m
+                ))
+              } else if (data.error) {
+                setChatMessages(prev => prev.map(m => 
+                  m.id === botMsgId ? { ...m, text: data.error, status: 'error' } : m
+                ))
+              }
+            } catch {
+              // Skip malformed JSON
+            }
+          }
+        }
+      }
+
+      // If no text received, show error
+      if (!fullText) {
+        setChatMessages(prev => prev.map(m => 
+          m.id === botMsgId ? { ...m, text: 'No response received', status: 'error' } : m
+        ))
+      }
+
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') {
+        setChatMessages(prev => prev.map(m => 
+          m.id === botMsgId ? { ...m, text: '⏹️ Cancelled', status: 'error' } : m
+        ))
+      } else {
+        // Fallback to non-streaming on error
+        try {
+          const fallbackRes = await fetch(API_PROXY, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'chat', url: chatUrl, message: msg }),
+          })
+          const json = await fallbackRes.json()
+          const reply = json.data?.response || json.data?.answer || json.data?.message || json.error || 'Connection error'
+          setChatMessages(prev => prev.map(m => 
+            m.id === botMsgId ? { ...m, text: reply, status: 'complete' } : m
+          ))
+        } catch {
+          setChatMessages(prev => prev.map(m => 
+            m.id === botMsgId ? { ...m, text: 'Connection error - Ocean Core may be offline', status: 'error' } : m
+          ))
+        }
+      }
     } finally {
       setChatLoading(false)
+      setChatStatus('')
+      abortControllerRef.current = null
+    }
+  }
+
+  function cancelChat() {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
     }
   }
 
@@ -283,12 +390,26 @@ export default function WebReaderPage() {
               />
             </div>
 
+            {/* Status indicator */}
+            {chatStatus && (
+              <div className="mb-3 px-4 py-2 bg-violet-500/10 border border-violet-500/30 rounded-lg flex items-center justify-between">
+                <span className="text-violet-400 text-sm animate-pulse">{chatStatus}</span>
+                <button 
+                  onClick={cancelChat}
+                  className="text-xs px-2 py-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500/40"
+                >
+                  ⏹️ Cancel
+                </button>
+              </div>
+            )}
+
             {/* Chat messages */}
             <div className="bg-white/5 border border-white/10 rounded-xl p-4 h-[50vh] overflow-y-auto mb-4 space-y-3">
               {chatMessages.length === 0 && (
                 <div className="text-center text-white/30 py-20">
                   <div className="text-4xl mb-3">💬</div>
                   <p>Enter a URL above and ask questions about the page content</p>
+                  <p className="text-xs mt-2 text-white/20">🚀 Now with elastic streaming - no timeouts!</p>
                 </div>
               )}
               {chatMessages.map(msg => (
@@ -297,23 +418,23 @@ export default function WebReaderPage() {
                   className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${
+                    className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm whitespace-pre-wrap ${
                       msg.sender === 'user'
                         ? 'bg-violet-600 text-white'
+                        : msg.status === 'error'
+                        ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                        : msg.status === 'streaming'
+                        ? 'bg-white/10 text-gray-200 border border-violet-500/30'
                         : 'bg-white/10 text-gray-200'
                     }`}
                   >
-                    {msg.text}
+                    {msg.text || (msg.status === 'streaming' && '...')}
+                    {msg.status === 'streaming' && (
+                      <span className="inline-block w-2 h-4 bg-violet-400 ml-1 animate-pulse" />
+                    )}
                   </div>
                 </div>
               ))}
-              {chatLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-white/10 px-4 py-2.5 rounded-2xl text-sm text-gray-400 animate-pulse">
-                    Ocean is reading the page and thinking...
-                  </div>
-                </div>
-              )}
             </div>
 
             <form onSubmit={handleChat} className="flex gap-3">
@@ -329,7 +450,7 @@ export default function WebReaderPage() {
                 disabled={chatLoading || !chatUrl}
                 className="px-6 py-3 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-xl text-white font-medium transition-all"
               >
-                Send
+                {chatLoading ? '⏳' : 'Send'}
               </button>
             </form>
           </div>
