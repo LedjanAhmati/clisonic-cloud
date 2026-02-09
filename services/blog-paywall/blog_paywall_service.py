@@ -155,7 +155,7 @@ class BlogPaywallService:
         
         try:
             session = stripe.checkout.Session.create(
-                payment_method_types=["card", "sepa_debit"],
+                payment_method_types=["card"],
                 mode="subscription",
                 customer_email=email,
                 line_items=[{
