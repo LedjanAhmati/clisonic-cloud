@@ -182,7 +182,7 @@ SERVICES = {
     # === DEVELOPER ===
     "developer-docs": {
         "name": "Developer Docs", 
-        "url": "/modules/developer-docs",
+        "url": "/developers",
         "desc": "API documentation and guides"
     },
     "functions-registry": {
