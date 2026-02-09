@@ -1,13 +1,9 @@
 # ═══════════════════════════════════════════════════════════════════════════════
-# DOCKERFILE.BLERINA - Pillar Content Engine v2.0
+# DOCKERFILE - BLERINA Pillar Content Engine
 # ═══════════════════════════════════════════════════════════════════════════════
 #
-# BLERINA v2.0 - High-quality content generation:
-# - Pillar Articles (3000-5000 words)
-# - Quality Gate Integration
-# - LLM-powered via Ollama
-# - YouTube integration
-# - Video Generator integration
+# Generates high-quality pillar articles (3000-5000 words)
+# with quality gate and LLM integration
 # ═══════════════════════════════════════════════════════════════════════════════
 
 FROM python:3.11-slim
@@ -22,15 +18,16 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
+# Install curl for healthcheck
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy and install requirements
+# Install dependencies
 COPY services/blerina/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy new Blerina Pillar service
+# Copy main service
 COPY services/blerina/main.py ./blerina_service.py
 
 # Create output directory
