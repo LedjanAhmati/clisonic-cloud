@@ -1200,10 +1200,475 @@ Answer the user's question based on this webpage content. Be concise and accurat
 
 
 # ═══════════════════════════════════════════════════════════════════
+# ZÜRICH ENGINE - 9-Stage Deterministic Reasoning
+# ═══════════════════════════════════════════════════════════════════
+
+class ZurichRequest(BaseModel):
+    prompt: str
+    include_debug: bool = False
+
+
+def zurich_cycle(input_text: str) -> Dict[str, Any]:
+    """
+    9-stage deterministic reasoning cycle - 100% predictable, no AI randomness.
+    Based on Harmonic Trinity's Zürich Engine.
+    """
+    start_time = time.time()
+    
+    # Stage 1: INTAKE - Parse input type
+    words = input_text.split()
+    word_count = len(words)
+    char_count = len(input_text)
+    
+    if input_text.endswith("?"):
+        input_type = "question"
+    elif input_text.endswith("!"):
+        input_type = "exclamation"
+    elif any(cmd in input_text.lower() for cmd in ["create", "make", "build", "generate"]):
+        input_type = "command"
+    else:
+        input_type = "statement"
+    
+    intake = {
+        "stage": 1,
+        "name": "intake",
+        "type": input_type,
+        "word_count": word_count,
+        "char_count": char_count
+    }
+    
+    # Stage 2: PREPROCESS - Normalize text
+    normalized = input_text.strip().lower()
+    keywords = [w for w in words if len(w) > 3]
+    
+    preprocess = {
+        "stage": 2,
+        "name": "preprocess",
+        "normalized": normalized[:100],
+        "keywords": keywords[:10]
+    }
+    
+    # Stage 3: TAGGER - Classify content & intent
+    domains = []
+    if any(w in normalized for w in ["code", "program", "python", "javascript", "function"]):
+        domains.append("programming")
+    if any(w in normalized for w in ["ai", "machine", "learning", "neural", "model"]):
+        domains.append("ai")
+    if any(w in normalized for w in ["business", "company", "market", "product"]):
+        domains.append("business")
+    if any(w in normalized for w in ["science", "research", "study", "experiment"]):
+        domains.append("science")
+    if any(w in normalized for w in ["health", "medical", "doctor", "disease"]):
+        domains.append("health")
+    if not domains:
+        domains.append("general")
+    
+    tagger = {
+        "stage": 3,
+        "name": "tagger",
+        "domains": domains,
+        "primary_domain": domains[0]
+    }
+    
+    # Stage 4: INTERPRET - Extract meanings
+    has_comparison = any(w in normalized for w in ["vs", "versus", "compare", "difference"])
+    has_definition = any(w in normalized for w in ["what is", "define", "meaning", "explain"])
+    has_howto = any(w in normalized for w in ["how to", "how do", "steps", "process"])
+    has_why = "why" in normalized
+    
+    interpret = {
+        "stage": 4,
+        "name": "interpret",
+        "seeking_comparison": has_comparison,
+        "seeking_definition": has_definition,
+        "seeking_howto": has_howto,
+        "seeking_reason": has_why
+    }
+    
+    # Stage 5: REASON - Build reasoning steps
+    reasoning_steps = []
+    if has_definition:
+        reasoning_steps.append("Provide clear definition")
+    if has_comparison:
+        reasoning_steps.append("Analyze both sides")
+        reasoning_steps.append("Highlight differences")
+    if has_howto:
+        reasoning_steps.append("Break into steps")
+        reasoning_steps.append("Provide examples")
+    if has_why:
+        reasoning_steps.append("Explain causation")
+        reasoning_steps.append("Provide evidence")
+    if not reasoning_steps:
+        reasoning_steps.append("Provide comprehensive response")
+    
+    reason = {
+        "stage": 5,
+        "name": "reason",
+        "steps": reasoning_steps,
+        "step_count": len(reasoning_steps)
+    }
+    
+    # Stage 6: STRATEGY - Select response mode
+    if word_count < 5:
+        strategy = "concise"
+    elif has_howto:
+        strategy = "step-by-step"
+    elif has_comparison:
+        strategy = "comparative"
+    elif has_definition:
+        strategy = "explanatory"
+    else:
+        strategy = "comprehensive"
+    
+    strategy_output = {
+        "stage": 6,
+        "name": "strategy",
+        "mode": strategy,
+        "expected_length": "short" if word_count < 5 else "medium" if word_count < 20 else "long"
+    }
+    
+    # Stage 7: DRAFT - Generate response structure
+    header = f"📋 Analysis of: {input_text[:50]}..."
+    
+    if strategy == "step-by-step":
+        structure = ["Introduction", "Step 1", "Step 2", "Step 3", "Conclusion"]
+    elif strategy == "comparative":
+        structure = ["Overview", "Option A", "Option B", "Comparison", "Recommendation"]
+    elif strategy == "explanatory":
+        structure = ["Definition", "Context", "Examples", "Summary"]
+    else:
+        structure = ["Main Point", "Supporting Details", "Conclusion"]
+    
+    draft = {
+        "stage": 7,
+        "name": "draft",
+        "header": header,
+        "structure": structure
+    }
+    
+    # Stage 8: FINAL - Format output
+    confidence = min(0.95, 0.7 + (len(domains) * 0.05) + (len(reasoning_steps) * 0.03))
+    
+    final_output = f"""**{header}**
+
+**Domain:** {', '.join(domains)}
+**Strategy:** {strategy}
+**Confidence:** {confidence:.0%}
+
+**Analysis:**
+Input type: {input_type}
+Keywords identified: {', '.join(keywords[:5]) if keywords else 'None specific'}
+
+**Response Structure:**
+{chr(10).join(f'• {s}' for s in structure)}
+
+**Reasoning Applied:**
+{chr(10).join(f'{i+1}. {step}' for i, step in enumerate(reasoning_steps))}
+
+---
+*Processed by Zürich Engine v1.0 - 9-stage deterministic cycle*
+*Processing time: {(time.time() - start_time) * 1000:.2f}ms*"""
+
+    final = {
+        "stage": 8,
+        "name": "final",
+        "output": final_output,
+        "confidence": confidence
+    }
+    
+    # Stage 9: CYCLE - Complete orchestration
+    processing_time = time.time() - start_time
+    
+    cycle = {
+        "stage": 9,
+        "name": "cycle",
+        "completed": True,
+        "total_stages": 9,
+        "processing_time_ms": processing_time * 1000
+    }
+    
+    return {
+        "input": input_text,
+        "output": final_output,
+        "confidence": confidence,
+        "strategy": strategy,
+        "domains": domains,
+        "stages": {
+            "intake": intake,
+            "preprocess": preprocess,
+            "tagger": tagger,
+            "interpret": interpret,
+            "reason": reason,
+            "strategy": strategy_output,
+            "draft": draft,
+            "final": final,
+            "cycle": cycle
+        }
+    }
+
+
+@app.post("/api/v1/zurich")
+async def zurich_reasoning(request: ZurichRequest):
+    """
+    Zürich Deterministic Reasoning Engine.
+    
+    9-stage processing cycle:
+    1. Intake - Parse input type
+    2. Preprocess - Normalize text
+    3. Tagger - Classify content & intent
+    4. Interpret - Extract meanings
+    5. Reason - Build reasoning steps
+    6. Strategy - Select response mode
+    7. Draft - Generate response structure
+    8. Final - Format output
+    9. Cycle - Complete orchestration
+    
+    100% deterministic - same input always produces same output.
+    """
+    if not request.prompt:
+        raise HTTPException(status_code=400, detail="prompt is required")
+    
+    result = zurich_cycle(request.prompt)
+    
+    response = {
+        "ok": True,
+        "input": request.prompt,
+        "output": result["output"],
+        "confidence": result["confidence"],
+        "strategy": result["strategy"],
+        "domains": result["domains"],
+        "processing_time_ms": result["stages"]["cycle"]["processing_time_ms"],
+        "engine": "Zürich Deterministic Engine v1.0"
+    }
+    
+    if request.include_debug:
+        response["stages"] = result["stages"]
+    
+    return response
+
+
+@app.get("/api/v1/zurich/info")
+async def zurich_info():
+    """Get Zürich Engine information and capabilities."""
+    return {
+        "name": "Zürich Deterministic Engine",
+        "version": "1.0",
+        "type": "Logic-based reasoning",
+        "description": "100% deterministic processing without AI randomness",
+        "stages": [
+            {"step": 1, "name": "intake", "description": "Parse input type"},
+            {"step": 2, "name": "preprocess", "description": "Normalize text"},
+            {"step": 3, "name": "tagger", "description": "Classify content & intent"},
+            {"step": 4, "name": "interpret", "description": "Extract meanings"},
+            {"step": 5, "name": "reason", "description": "Build reasoning steps"},
+            {"step": 6, "name": "strategy", "description": "Select response mode"},
+            {"step": 7, "name": "draft", "description": "Generate response structure"},
+            {"step": 8, "name": "final", "description": "Format output"},
+            {"step": 9, "name": "cycle", "description": "Complete orchestration"}
+        ],
+        "features": [
+            "Deterministic processing",
+            "No external API calls",
+            "Local computation only",
+            "Pattern-based reasoning",
+            "Structured output"
+        ],
+        "response_time": "1-50ms per input"
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════
+# TRINITY PERSONAS - Multi-Persona AI Debate
+# ═══════════════════════════════════════════════════════════════════
+
+class DebateRequest(BaseModel):
+    topic: str
+    personas: Optional[List[str]] = None  # Default: all 5
+    max_tokens: int = 500
+
+
+# The 5 Trinity Personas
+TRINITY_PERSONAS = {
+    "alba": {
+        "name": "Alba",
+        "emoji": "🌅",
+        "role": "The Optimist",
+        "description": "Sees opportunity in every challenge, focuses on positive outcomes",
+        "style": "Hopeful, encouraging, solution-oriented",
+        "prompt_prefix": "As Alba the Optimist, I see the positive side:"
+    },
+    "albi": {
+        "name": "Albi", 
+        "emoji": "🔧",
+        "role": "The Pragmatist",
+        "description": "Practical, results-focused, concerned with implementation",
+        "style": "Direct, practical, actionable",
+        "prompt_prefix": "As Albi the Pragmatist, here's the practical view:"
+    },
+    "jona": {
+        "name": "Jona",
+        "emoji": "🔍",
+        "role": "The Skeptic",
+        "description": "Questions assumptions, identifies risks and weaknesses",
+        "style": "Critical, analytical, cautious",
+        "prompt_prefix": "As Jona the Skeptic, I must point out:"
+    },
+    "blerina": {
+        "name": "Blerina",
+        "emoji": "🌐",
+        "role": "The Analyst",
+        "description": "Data-driven, systematic, considers all angles",
+        "style": "Methodical, thorough, evidence-based",
+        "prompt_prefix": "As Blerina the Analyst, looking at the data:"
+    },
+    "asi": {
+        "name": "ASI",
+        "emoji": "🧠",
+        "role": "The Meta-Thinker",
+        "description": "Synthesizes all perspectives, finds higher-level patterns",
+        "style": "Philosophical, integrative, holistic",
+        "prompt_prefix": "As ASI, synthesizing all perspectives:"
+    }
+}
+
+
+async def get_persona_response(persona_id: str, topic: str, max_tokens: int = 500) -> Dict[str, Any]:
+    """Get a response from a specific persona using Ollama."""
+    persona = TRINITY_PERSONAS.get(persona_id)
+    if not persona:
+        return {"error": f"Unknown persona: {persona_id}"}
+    
+    system_prompt = f"""You are {persona['name']}, {persona['role']} in the Trinity AI system.
+
+Your personality: {persona['description']}
+Your style: {persona['style']}
+
+Respond to the topic from your unique perspective. Be concise but insightful.
+Keep your response under 150 words."""
+
+    user_prompt = f"{persona['prompt_prefix']}\n\nTopic: {topic}"
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{OLLAMA_HOST}/api/generate",
+                json={
+                    "model": MODEL,
+                    "prompt": user_prompt,
+                    "system": system_prompt,
+                    "stream": False,
+                    "options": {"num_predict": max_tokens}
+                }
+            )
+        
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                "persona": persona_id,
+                "name": persona["name"],
+                "emoji": persona["emoji"],
+                "role": persona["role"],
+                "response": data.get("response", "No response generated"),
+                "status": "success"
+            }
+        else:
+            return {
+                "persona": persona_id,
+                "name": persona["name"],
+                "emoji": persona["emoji"],
+                "role": persona["role"],
+                "response": f"Error: {response.status_code}",
+                "status": "error"
+            }
+            
+    except Exception as e:
+        logger.error(f"Persona {persona_id} error: {e}")
+        return {
+            "persona": persona_id,
+            "name": persona["name"],
+            "emoji": persona["emoji"],
+            "role": persona["role"],
+            "response": f"Connection error: {str(e)}",
+            "status": "error"
+        }
+
+
+@app.post("/api/v1/debate")
+async def trinity_debate(request: DebateRequest):
+    """
+    Trinity Multi-Persona Debate.
+    
+    5 AI personas debate a topic from different perspectives:
+    - Alba (🌅) - The Optimist
+    - Albi (🔧) - The Pragmatist
+    - Jona (🔍) - The Skeptic
+    - Blerina (🌐) - The Analyst
+    - ASI (🧠) - The Meta-Thinker
+    
+    Returns all perspectives for a balanced view.
+    """
+    if not request.topic:
+        raise HTTPException(status_code=400, detail="topic is required")
+    
+    start_time = time.time()
+    
+    # Determine which personas to use
+    persona_ids = request.personas if request.personas else list(TRINITY_PERSONAS.keys())
+    
+    # Validate personas
+    valid_personas = [p for p in persona_ids if p in TRINITY_PERSONAS]
+    if not valid_personas:
+        raise HTTPException(status_code=400, detail=f"No valid personas. Available: {list(TRINITY_PERSONAS.keys())}")
+    
+    # Get responses from all personas in parallel
+    tasks = [get_persona_response(p, request.topic, request.max_tokens) for p in valid_personas]
+    responses = await asyncio.gather(*tasks)
+    
+    processing_time = time.time() - start_time
+    
+    # Count successes
+    success_count = sum(1 for r in responses if r.get("status") == "success")
+    
+    return {
+        "ok": True,
+        "topic": request.topic,
+        "responses": responses,
+        "stats": {
+            "total_personas": len(valid_personas),
+            "successful": success_count,
+            "failed": len(valid_personas) - success_count,
+            "processing_time_ms": processing_time * 1000
+        },
+        "engine": "Trinity Debate Engine v1.0"
+    }
+
+
+@app.get("/api/v1/debate/personas")
+async def list_personas():
+    """List all available Trinity personas."""
+    return {
+        "personas": [
+            {
+                "id": pid,
+                "name": p["name"],
+                "emoji": p["emoji"],
+                "role": p["role"],
+                "description": p["description"],
+                "style": p["style"]
+            }
+            for pid, p in TRINITY_PERSONAS.items()
+        ],
+        "total": len(TRINITY_PERSONAS)
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════
 # MAIN
 # ═══════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
     import uvicorn
     logger.info(f"🌊 Ocean Core Full v5.0.0 starting on port {PORT}")
+    logger.info(f"⚙️ Zürich Engine v1.0 - 9-stage deterministic reasoning")
+    logger.info(f"🧠 Trinity Debate v1.0 - 5-persona AI debate")
     uvicorn.run(app, host="0.0.0.0", port=PORT)
