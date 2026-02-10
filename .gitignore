@@ -186,3 +186,11 @@ apps/web/.next/
 apps/web/kitchen-jobs/
 *.pack.gz
 *.pack.gz.old
+
+# Claude temporary directories
+tmpclaude-*
+
+
+# Claude temporary directories
+tmpclaude-*
+
