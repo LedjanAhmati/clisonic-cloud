@@ -18,12 +18,22 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import asyncio
+from typing import Optional
+
+# Language detection
+try:
+    from langdetect import detect, LangDetectException
+    LANGDETECT_AVAILABLE = True
+except ImportError:
+    LANGDETECT_AVAILABLE = False
+    logging.warning("langdetect not available - language detection disabled")
 
 # Local imports
 from data_sources import get_internal_data_sources
 from query_processor import get_query_processor, QueryIntent
 from knowledge_engine import get_knowledge_engine, KnowledgeResponse
 from persona_router import PersonaRouter
+from config import OCEAN_SYSTEM_PROMPT, LANGUAGE_CODES
 
 
 async def get_knowledge_engine_hybrid(data_sources):
@@ -70,6 +80,57 @@ internal_data_sources = None
 persona_router = None
 query_processor = None
 knowledge_engine = None
+
+
+def detect_language(text: str) -> Optional[str]:
+    """
+    Detect language of input text
+    Returns ISO 639-1 language code (e.g., 'en', 'de', 'sq')
+    """
+    if not LANGDETECT_AVAILABLE:
+        return None
+    
+    try:
+        # Clean text for detection
+        clean_text = text.strip().lower()
+        if len(clean_text) < 3:
+            return None
+        
+        detected = detect(clean_text)
+        logger.debug(f"Detected language: {detected} for text: {clean_text[:50]}...")
+        return detected
+    except LangDetectException as e:
+        logger.warning(f"Language detection failed: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error in language detection: {e}")
+        return None
+
+
+def build_language_prompt(question: str, detected_lang: Optional[str] = None) -> str:
+    """
+    Build enhanced prompt with language instructions
+    """
+    # Detect language if not provided
+    if detected_lang is None:
+        detected_lang = detect_language(question)
+    
+    # Base prompt with system instructions
+    enhanced_prompt = OCEAN_SYSTEM_PROMPT + "\n\n"
+    
+    # Add language-specific instruction
+    if detected_lang and detected_lang in LANGUAGE_CODES:
+        lang_name = LANGUAGE_CODES[detected_lang]
+        enhanced_prompt += f"**USER LANGUAGE DETECTED: {lang_name} ({detected_lang})**\n"
+        enhanced_prompt += f"IMPORTANT: You MUST respond ONLY in {lang_name}. Do not mix languages.\n\n"
+    else:
+        enhanced_prompt += "**USER LANGUAGE: Unknown - default to English**\n\n"
+    
+    # Add the actual question
+    enhanced_prompt += f"**USER QUESTION:**\n{question}\n\n"
+    enhanced_prompt += "**YOUR ANSWER (in the detected language):**\n"
+    
+    return enhanced_prompt
 
 
 @app.on_event("startup")
@@ -259,6 +320,14 @@ async def query_ocean(
     try:
         logger.info(f"🧠 Received query: {question}")
         
+        # 0. Detect language and enhance prompt
+        detected_lang = detect_language(question)
+        if detected_lang:
+            logger.info(f"🌐 Detected language: {detected_lang} ({LANGUAGE_CODES.get(detected_lang, 'Unknown')})")
+        
+        # Build enhanced prompt with language instructions
+        enhanced_question = build_language_prompt(question, detected_lang)
+        
         # 1. Get internal data
         internal_data = internal_data_sources.get_all_data()
         
@@ -272,11 +341,12 @@ async def query_ocean(
         # 3. Process query with full knowledge engine
         processed = await query_processor.process(question)
         
-        # 4. Generate comprehensive answer
+        # 4. Generate comprehensive answer (with enhanced prompt)
         response = None
         if knowledge_engine:
             try:
-                response = await knowledge_engine.answer_query(question, processed)
+                # Use enhanced question with language instructions
+                response = await knowledge_engine.answer_query(enhanced_question, processed)
             except Exception as ke_error:
                 logger.warning(f"Knowledge engine error: {ke_error}, using persona response")
         
@@ -293,6 +363,8 @@ async def query_ocean(
                 "processing_time_ms": 0,
                 "curiosity_threads": [],
                 "data_sources_used": ["internal_only"],
+                "detected_language": detected_lang or "unknown",
+                "language_name": LANGUAGE_CODES.get(detected_lang, "Unknown") if detected_lang else "Unknown",
                 "timestamp": datetime.now().isoformat()
             }
         else:
@@ -317,6 +389,8 @@ async def query_ocean(
                     for thread in response.curiosity_threads
                 ],
                 "data_sources_used": ["internal_only"],
+                "detected_language": detected_lang or "unknown",
+                "language_name": LANGUAGE_CODES.get(detected_lang, "Unknown") if detected_lang else "Unknown",
                 "timestamp": response.timestamp
             }
         
