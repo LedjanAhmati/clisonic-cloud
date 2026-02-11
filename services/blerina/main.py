@@ -26,7 +26,11 @@ import logging
 import os
 import re
 import time
+<<<<<<< HEAD
 from dataclasses import dataclass
+=======
+from dataclasses import dataclass, field
+>>>>>>> fc9063a0 (feat: BLERINA Pillar Engine v2.0 - 3000-5000 word articles with quality gate)
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
@@ -401,7 +405,11 @@ async def generate_pillar_article(topic: PillarTopic, title: str, sections: List
     """Generate a complete pillar article with multiple sections"""
     
     full_content = f"# {title}\n\n"
+<<<<<<< HEAD
     full_content += "*Author: Ledjan Ahmati, CEO of ABA GmbH*\n"
+=======
+    full_content += f"*Author: Ledjan Ahmati, CEO of ABA GmbH*\n"
+>>>>>>> fc9063a0 (feat: BLERINA Pillar Engine v2.0 - 3000-5000 word articles with quality gate)
     full_content += f"*Published: {datetime.now(timezone.utc).strftime('%B %d, %Y')}*\n\n"
     
     # Generate each section
@@ -720,7 +728,11 @@ async def analyze_document_legacy(request: dict):
 async def generate_narrative_legacy(request: dict, background_tasks: BackgroundTasks):
     """Legacy narrative generation - redirects to pillar generation"""
     topic = request.get("topic", "general")
+<<<<<<< HEAD
     pillar_request = PillarRequest(topic=topic, custom_title=None, target_words=3000)
+=======
+    pillar_request = PillarRequest(topic=topic, target_words=3000)
+>>>>>>> fc9063a0 (feat: BLERINA Pillar Engine v2.0 - 3000-5000 word articles with quality gate)
     return await generate_pillar(pillar_request, background_tasks)
 
 

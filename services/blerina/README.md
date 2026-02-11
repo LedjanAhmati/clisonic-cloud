@@ -13,7 +13,11 @@ High-quality pillar article generation with quality gate.
 ## API Endpoints
 
 | Endpoint | Method | Description |
+<<<<<<< HEAD
 | ---------- | -------- | ------------- |
+=======
+|----------|--------|-------------|
+>>>>>>> fc9063a0 (feat: BLERINA Pillar Engine v2.0 - 3000-5000 word articles with quality gate)
 | `/health` | GET | Health check |
 | `/status` | GET | Detailed status |
 | `/api/v1/topics` | GET | List available topics |
@@ -41,6 +45,7 @@ curl -X POST http://localhost:8035/api/v1/pillars/generate \
 ## Environment Variables
 
 | Variable | Default | Description |
+<<<<<<< HEAD
 | ---------- | --------- | ------------- |
 | `PORT` | 8035 | Service port |
 | `OLLAMA_HOST` | <http://localhost:11434> | Ollama URL |
@@ -48,6 +53,15 @@ curl -X POST http://localhost:8035/api/v1/pillars/generate \
 | `YOUTUBE_API_KEY` | - | YouTube Data API key |
 | `YOUTUBE_CHANNEL_ID` | UCuCd7kgikh6CM2hAh5eAIMA | Channel ID |
 | `VIDEO_GENERATOR_URL` | <http://localhost:8029> | Video generator |
+=======
+|----------|---------|-------------|
+| `PORT` | 8035 | Service port |
+| `OLLAMA_HOST` | http://localhost:11434 | Ollama URL |
+| `MODEL` | llama3.1:8b | LLM model |
+| `YOUTUBE_API_KEY` | - | YouTube Data API key |
+| `YOUTUBE_CHANNEL_ID` | UCuCd7kgikh6CM2hAh5eAIMA | Channel ID |
+| `VIDEO_GENERATOR_URL` | http://localhost:8029 | Video generator |
+>>>>>>> fc9063a0 (feat: BLERINA Pillar Engine v2.0 - 3000-5000 word articles with quality gate)
 
 ## Pillar Topics
 
