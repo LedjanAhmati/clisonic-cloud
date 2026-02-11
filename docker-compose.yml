@@ -744,6 +744,34 @@ services:
       retries: 3
     restart: unless-stopped
 
+  # BLOG AUTO-PUBLISHER (GitHub Pages Integration)
+  blog_publisher:
+    build:
+      context: ./services/blog_publisher
+      dockerfile: Dockerfile
+    container_name: clisonix-blog-publisher
+    environment:
+      PYTHONUNBUFFERED: "1"
+      PUBLISHER_PORT: "8041"
+      GITHUB_TOKEN: "${GITHUB_TOKEN:-}"
+      GITHUB_REPO: "ledjanahmati/clisonix-blog"
+      GITHUB_BRANCH: "main"
+      POSTS_PER_DAY: "4"
+    ports:
+      - "8041:8041"
+    volumes:
+      - ./all_pillars:/app/blerina_pillars
+      - ./generated_medical_pillars:/app/medical_pillars
+    depends_on:
+      - blerina
+      - dr_albana
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8041/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
   # BLOG PAYWALL (Stripe Subscription Service)
   blog-paywall:
     build:
