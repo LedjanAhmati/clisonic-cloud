@@ -715,6 +715,35 @@ services:
       retries: 3
     restart: unless-stopped
 
+  # ============================================
+  # DR. ALBANA - Medical Content Service
+  # 100% Clinical, Zero BCI/EEG/Code
+  # Specialized: Cardiology, Hepatology, Endocrinology, Corpus
+  # ============================================
+  dr_albana:
+    build:
+      context: ./services/dr_albana
+      dockerfile: Dockerfile
+    container_name: clisonix-dr-albana
+    environment:
+      PYTHONUNBUFFERED: "1"
+      OLLAMA_URL: "http://clisonix-ollama:11434"
+      MEDICAL_MODEL: "llama3.2:1b"
+      DR_ALBANA_PORT: "8040"
+    ports:
+      - "8040:8040"
+    volumes:
+      - ./generated_medical_pillars:/app/generated_medical_pillars
+    depends_on:
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8040/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
   # BLOG PAYWALL (Stripe Subscription Service)
   blog-paywall:
     build:
