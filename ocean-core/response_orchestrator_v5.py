@@ -16,12 +16,13 @@ import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
 # Import Mega Layer Engine
 try:
-    from mega_layer_engine import get_mega_layer_engine, MegaLayerEngine as MegaLayerEngineClass, LayerActivation
+    from mega_layer_engine import LayerActivation, get_mega_layer_engine
+    from mega_layer_engine import MegaLayerEngine as MegaLayerEngineClass
     MEGA_LAYERS_AVAILABLE = True
 except ImportError:
     MEGA_LAYERS_AVAILABLE = False
@@ -30,7 +31,7 @@ except ImportError:
 
 # Import Knowledge Seeds
 try:
-    from knowledge_seeds.core_knowledge import find_matching_seed, seed_stats, KnowledgeSeed
+    from knowledge_seeds.core_knowledge import KnowledgeSeed, find_matching_seed, seed_stats
     KNOWLEDGE_SEEDS_AVAILABLE = True
 except ImportError:
     KNOWLEDGE_SEEDS_AVAILABLE = False
@@ -49,13 +50,7 @@ except ImportError:
 
 # Import Albanian Dictionary
 try:
-    from albanian_dictionary import (
-        get_albanian_response, 
-        detect_albanian, 
-        ALL_ALBANIAN_WORDS,
-        CLISONIX_TERMS,
-        SENTENCE_PATTERNS
-    )
+    from albanian_dictionary import ALL_ALBANIAN_WORDS, CLISONIX_TERMS, SENTENCE_PATTERNS, detect_albanian, get_albanian_response
     ALBANIAN_DICT_AVAILABLE = True
 except ImportError:
     ALBANIAN_DICT_AVAILABLE = False
@@ -602,6 +597,22 @@ class ResponseOrchestratorV5:
         sources = []
         base_confidence = 0.9
         used_ollama = False
+        used_albanian_dict = False
+        
+        # ═══════════════════════════════════════════════════════════════════════
+        # ALBANIAN DICTIONARY - FAST LOCAL RESPONSES (para Ollama)
+        # ═══════════════════════════════════════════════════════════════════════
+        if lang == "sq" and ALBANIAN_DICT_AVAILABLE and get_albanian_response is not None:
+            try:
+                albanian_response = get_albanian_response(query)
+                if albanian_response:
+                    base_text = albanian_response
+                    sources = ["albanian_dictionary:local"]
+                    base_confidence = 0.95  # High confidence for local dictionary
+                    used_albanian_dict = True
+                    logger.info(f"🇦🇱 Albanian Dictionary responded locally (no Ollama needed)")
+            except Exception as e:
+                logger.warning(f"Albanian dictionary error: {e}")
         
         # ═══════════════════════════════════════════════════════════════════════
         # LANGUAGE OVERRIDE for Ollama - inject language instruction
@@ -626,7 +637,8 @@ class ResponseOrchestratorV5:
             logger.info(f"🌍 Auto-detected language: {lang_name}")
         
         # OLLAMA FAST - Linja Optike (zero overhead)
-        if self.ollama_engine:
+        # Skip if Albanian dictionary already provided a response
+        if self.ollama_engine and not used_albanian_dict:
             try:
                 # Build enhanced query with language instruction
                 enhanced_query = query
@@ -668,6 +680,7 @@ class ResponseOrchestratorV5:
                 "experts_used": 0,
                 "mega_layers_active": False,
                 "combinations_used": 0,
+                "albanian_dict_used": used_albanian_dict,
             },
         )
         
@@ -677,6 +690,7 @@ class ResponseOrchestratorV5:
             "category": category.value,
             "mode": mode,
             "lang": lang,
+            "albanian_dict_used": used_albanian_dict,
             "timestamp": response.timestamp,
         })
         

@@ -439,6 +439,23 @@ You MUST follow these rules EXACTLY. No exceptions.
 VIOLATION OF THESE RULES IS NOT ALLOWED."""
         engines_used.append("StrictMode")
     
+    # 4.6. ALBANIAN DICTIONARY - Direct response for Albanian definition queries
+    if ALBANIAN_DICT_AVAILABLE:
+        # Check if we have a direct Albanian answer (for definitions, greetings, etc.)
+        albanian_response = get_albanian_response(prompt)
+        if albanian_response:
+            engines_used.append("AlbanianDictionary")
+            elapsed = time.time() - start_time
+            logger.info(f"✅ [sq] {elapsed:.1f}s - Albanian Dict Response - Engines: {', '.join(engines_used)}")
+            return ChatResponse(
+                response=albanian_response,
+                model="albanian_dictionary_v1",
+                processing_time=round(elapsed, 2),
+                engines_used=engines_used,
+                language_detected="sq",
+                layer_activations=None
+            )
+    
     # 5. Build enhanced system prompt
     enhanced_prompt = SYSTEM_PROMPT + lang_instruction + seed_context + mega_context + strict_instruction
     
@@ -637,6 +654,17 @@ async def chat_stream(req: ChatRequest):
 4. CONTINUOUS OUTPUT - Write without stopping"""
         engines_used.append("StrictMode")
     
+    # 4. Albanian Dictionary - Direct response for definition queries
+    if ALBANIAN_DICT_AVAILABLE:
+        albanian_response = get_albanian_response(prompt)
+        if albanian_response:
+            engines_used.append("AlbanianDictionary")
+            logger.info(f"🇦🇱 Albanian Dict direct response for: {prompt[:50]}...")
+            # Return as plain text streaming-compatible response
+            async def albanian_stream():
+                yield albanian_response
+            return StreamingResponse(albanian_stream(), media_type="text/plain")
+    
     # Build prompt
     enhanced_prompt = SYSTEM_PROMPT + lang_instruction + seed_context + strict_instruction
     
@@ -674,6 +702,115 @@ async def chat_stream(req: ChatRequest):
 async def query(req: ChatRequest):
     """Query endpoint - Same as chat"""
     return await process_query_full(req)
+
+
+# Specialized expertise domains
+EXPERT_DOMAINS = {
+    "neuroscience": "You are a world-class neuroscientist specializing in brain research, cognitive science, and neural pathways.",
+    "ai": "You are an expert in AI & Deep Learning, machine learning architectures, neural networks, and AGI research.",
+    "quantum": "You are a quantum physicist specializing in quantum mechanics, entanglement, and quantum computing.",
+    "iot": "You are an IoT & LoRa Networks expert specializing in sensors, gateways, and embedded systems.",
+    "cybersecurity": "You are a cybersecurity expert specializing in encryption, vulnerabilities, and security protocols.",
+    "bioinformatics": "You are a bioinformatics expert specializing in genetics, DNA analysis, and protein structures.",
+    "datascience": "You are a data science expert specializing in statistics, analytics, and visualization.",
+    "marine": "You are a marine biologist specializing in ocean ecosystems and marine life."
+}
+
+
+@app.post("/api/v1/chat/specialized", response_model=ChatResponse)
+async def chat_specialized(req: ChatRequest):
+    """
+    Specialized Expert Chat endpoint - domain-specific expertise.
+    Uses expert personas for advanced domain questions.
+    """
+    start_time = time.time()
+    engines_used = []
+    
+    prompt = req.message or req.query
+    if not prompt:
+        raise HTTPException(status_code=400, detail="message or query required")
+    
+    # Detect language
+    lang_code, lang_name, confidence = await detect_language(prompt)
+    engines_used.append(f"TranslationNode({lang_code})")
+    
+    # Determine expertise domain from request or auto-detect
+    domain = getattr(req, 'domain', None) or 'ai'  # Default to AI
+    expert_persona = EXPERT_DOMAINS.get(domain, EXPERT_DOMAINS['ai'])
+    engines_used.append(f"ExpertDomain({domain})")
+    
+    # Albanian Dictionary check first
+    if ALBANIAN_DICT_AVAILABLE:
+        albanian_response = get_albanian_response(prompt)
+        if albanian_response:
+            engines_used.append("AlbanianDictionary")
+            elapsed = time.time() - start_time
+            return ChatResponse(
+                response=albanian_response,
+                model="albanian_dictionary_v1",
+                processing_time=round(elapsed, 2),
+                engines_used=engines_used,
+                language_detected="sq",
+                layer_activations=None
+            )
+    
+    # Build expert system prompt
+    lang_instruction = ""
+    if lang_code != "en":
+        lang_instruction = f"\n\nIMPORTANT: Respond in {lang_name}."
+    
+    expert_prompt = f"""{expert_persona}
+
+You provide expert-level, research-backed answers. Be precise, technical, and comprehensive.
+{lang_instruction}"""
+    
+    # Call Ollama with expert context
+    try:
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            resp = await client.post(
+                f"{OLLAMA_HOST}/api/chat",
+                json={
+                    "model": req.model or MODEL,
+                    "messages": [
+                        {"role": "system", "content": expert_prompt},
+                        {"role": "user", "content": prompt}
+                    ],
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.5,  # Lower for more factual
+                        "num_ctx": 8192,
+                        "repeat_penalty": 1.1,
+                        "top_p": 0.85,
+                        "num_predict": 1024  # Limit response length
+                    }
+                }
+            )
+            
+            if resp.status_code != 200:
+                raise HTTPException(status_code=resp.status_code, detail="Ollama error")
+            
+            data = resp.json()
+            response_text = data.get("message", {}).get("content", "No response")
+            engines_used.append(f"Ollama({req.model or MODEL})")
+            
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Expert analysis timeout - question too complex")
+    except Exception as e:
+        logger.error(f"Specialized chat error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    
+    elapsed = time.time() - start_time
+    logger.info(f"🎓 [{domain}] [{lang_code}] {elapsed:.1f}s - Engines: {', '.join(engines_used)}")
+    
+    return ChatResponse(
+        response=response_text,
+        model=req.model or MODEL,
+        processing_time=round(elapsed, 2),
+        engines_used=engines_used,
+        language_detected=lang_code,
+        layer_activations=None
+    )
+
 
 @app.get("/api/v1/services")
 async def list_services():

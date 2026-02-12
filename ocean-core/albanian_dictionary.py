@@ -627,6 +627,91 @@ SENTENCE_PATTERNS = {
 }
 
 
+# Përkufizimet e termave të zakonshme në shqip
+DEFINITIONS = {
+    # Teknologji dhe AI
+    "inteligjenca artificiale": "Inteligjenca Artificiale (IA) është aftësia e një sistemi kompjuterik për të kryer detyra që normalisht kërkojnë inteligjencën njerëzore, si kuptimi i gjuhës, njohja e imazheve, vendimmarrja dhe mësimi.",
+    "inteligjence artificiale": "Inteligjenca Artificiale (IA) është aftësia e një sistemi kompjuterik për të kryer detyra që normalisht kërkojnë inteligjencën njerëzore.",
+    "ai": "AI (Artificial Intelligence) është shkurtesa angleze për Inteligjencën Artificiale - sisteme kompjuterike që imitojnë inteligjencën njerëzore.",
+    "machine learning": "Mësimi i Makinës (Machine Learning) është nëndegë e AI-t ku sistemet mësojnë nga të dhënat pa u programuar eksplicitisht.",
+    "mesim makine": "Mësimi i Makinës është nëndegë e AI-t ku kompjuterët mësojnë nga shembujt dhe përvojat e kaluara.",
+    "deep learning": "Mësimi i Thellë (Deep Learning) përdor rrjete nervore me shumë shtresa për të mësuar përfaqësime komplekse të të dhënave.",
+    "rrjet nervor": "Rrjeti Nervor Artificial është një model i frymëzuar nga truri njerëzor, me nyje (neurone) të lidhura që procesojnë informacion.",
+    "neural network": "Rrjeti Nervor është arkitektura bazë e sistemeve të AI-t moderne, e frymëzuar nga struktura e trurit.",
+    "algoritm": "Algoritmi është një seri hapash të përcaktuar për zgjidhjen e një problemi ose kryerjen e një detyre.",
+    "chatgpt": "ChatGPT është një model gjuhësor i madh (LLM) i krijuar nga OpenAI për biseda natyrore.",
+    "llm": "LLM (Large Language Model) është një model AI i trajnuar në sasi të mëdha teksti për të kuptuar dhe gjeneruar gjuhë.",
+    "gpt": "GPT (Generative Pre-trained Transformer) është arkitektura e modeleve gjuhësore të OpenAI.",
+    "ollama": "Ollama është një platformë për ekzekutimin e modeleve AI lokalisht në kompjuterin personal.",
+    
+    # Kompjuteri dhe Internet
+    "kompjuter": "Kompjuteri është një pajisje elektronike që proceson të dhëna sipas udhëzimeve (programeve) dhe kthen rezultate.",
+    "internet": "Interneti është rrjeti global i kompjuterëve të lidhur që mundëson shkëmbimin e informacionit dhe komunikimin.",
+    "server": "Serveri është një kompjuter i fuqishëm që ofron shërbime për kompjuterë të tjerë (klientë) në rrjet.",
+    "databaze": "Databaza është një sistem i organizuar për ruajtjen, menaxhimin dhe rikthimin e të dhënave.",
+    "api": "API (Application Programming Interface) është ndërfaqja që mundëson komunikimin ndërmjet programeve të ndryshme.",
+    "cloud": "Cloud Computing është përdorimi i burimeve kompjuterike (serverë, databaza) përmes internetit.",
+    "software": "Softueri është tërësia e programeve dhe udhëzimeve që drejtojnë funksionimin e kompjuterit.",
+    "hardware": "Hardueri është pjesa fizike e kompjuterit - procesor, memorie, ekran, tastierë, etj.",
+    
+    # Shkencat
+    "fizika": "Fizika është shkenca që studion materie, energji, lëvizjen dhe bashkëveprimin e tyre në univers.",
+    "kimia": "Kimia është shkenca që studion përbërjen, strukturën dhe transformimet e substancave.",
+    "biologjia": "Biologjia është shkenca e jetës që studion organizmat e gjallë dhe proceset e jetës.",
+    "matematika": "Matematika është shkenca e numrave, sasisë, strukturës, hapësirës dhe ndryshimit.",
+    "astronomia": "Astronomia është shkenca që studion objektet qiellore, hapësirën dhe universin.",
+    "neurologjia": "Neurologjia është dega e mjekësisë që studion sistemin nervor dhe sëmundjet e tij.",
+    "psikologjia": "Psikologjia është shkenca që studion mendjen, sjelljen dhe proceset mendore.",
+    
+    # Koncepte të përgjithshme
+    "demokracia": "Demokracia është sistem qeverisës ku pushteti vjen nga populli përmes zgjedhjeve.",
+    "ekonomia": "Ekonomia është shkenca që studion prodhimin, shpërndarjen dhe konsumimin e mallrave dhe shërbimeve.",
+    "kapitalizmi": "Kapitalizmi është sistem ekonomik ku mjetet e prodhimit janë private dhe ekonomia udhëhiqet nga tregu.",
+    "socializmi": "Socializmi është sistem ekonomik dhe politik ku mjetet e prodhimit janë nën pronësi të përbashkët.",
+    "filozofia": "Filozofia është studimi i pyetjeve themelore rreth ekzistencës, njohurisë, vlerave dhe arsyes.",
+    "etika": "Etika është dega e filozofisë që studion të mirën, të keqen dhe moralitetin.",
+    "logjika": "Logjika është shkenca e arsyetimit të saktë dhe strukturës së argumenteve.",
+    
+    # Shqipëria dhe kultura
+    "shqiperia": "Shqipëria është vend në Ballkanin Perëndimor me kryeqytet Tiranën. Ka rreth 2.8 milion banorë.",
+    "shqipja": "Shqipja është gjuha zyrtare e Shqipërisë, e folur edhe në Kosovë, Maqedoni e Veriut, dhe diasporë.",
+    "kosova": "Kosova është vend në Ballkan me shumicë shqiptare, me kryeqytet Prishtinën.",
+    "tirana": "Tirana është kryeqyteti dhe qyteti më i madh i Shqipërisë.",
+    "prishtina": "Prishtina është kryeqyteti i Kosovës dhe qendra më e madhe urbane.",
+    
+    # Clisonix
+    "clisonix": "Clisonix është platformë e inteligjencës industriale e krijuar nga Ledjan Ahmati. Ofron zgjidhje AI, IoT dhe analitikë në kohë reale.",
+    "curiosity ocean": "Curiosity Ocean është moduli AI chat i Clisonix - një asistent inteligjent që përgjigjet në shumë gjuhë.",
+    "ledjan ahmati": "Ledjan Ahmati është Geschäftsführer dhe themeluesi i Clisonix, që operon nën ABA GmbH (Amtsgericht Bochum HRB: 21069).",
+}
+
+
+def get_definition(term: str) -> str | None:
+    """
+    Kërko përkufizimin e një termi në shqip.
+    Kthen None nëse termi nuk gjendet.
+    """
+    term_lower = term.lower().strip()
+    
+    # Kërko direkt në dictionary
+    if term_lower in DEFINITIONS:
+        return DEFINITIONS[term_lower]
+    
+    # Kërko pa diacritike (ë → e, ç → c)
+    term_simple = term_lower.replace('ë', 'e').replace('ç', 'c')
+    for key, value in DEFINITIONS.items():
+        key_simple = key.replace('ë', 'e').replace('ç', 'c')
+        if term_simple == key_simple:
+            return value
+    
+    # Kërko pjesërisht (nëse termi është pjesë e çelësit)
+    for key, value in DEFINITIONS.items():
+        if term_lower in key or key in term_lower:
+            return value
+    
+    return None
+
+
 def get_albanian_response(query: str) -> str | None:
     """
     Try to match query with Albanian patterns and return appropriate response.
@@ -634,7 +719,49 @@ def get_albanian_response(query: str) -> str | None:
     """
     query_lower = query.lower().strip()
     
-    # Check for greetings
+    # ═══════════════════════════════════════════════════════════════════════════
+    # 1) CHECK FOR DEFINITION QUERIES - "çfarë është X", "shpjego X", "tregom për X"
+    # ═══════════════════════════════════════════════════════════════════════════
+    import re
+    
+    # Pattern për pyetje definicionesh
+    definition_patterns = [
+        r'(?:çfarë|cfare|cka|ç\'?ka)\s+(?:është|eshte|osht)\s+(.+?)(?:\?|$)',  # çfarë është X?
+        r'(?:shpjego|shpjegom|shpjegoje|tregom?\s+për)\s+(.+?)(?:\?|$)',  # shpjego X
+        r'(?:kush|ku)\s+(?:është|eshte)\s+(.+?)(?:\?|$)',  # kush/ku është X?
+        r'(?:si\s+funksionon|si\s+punon)\s+(.+?)(?:\?|$)',  # si funksionon X?
+        r'(?:perkufizo|përkufizo|defino)\s+(.+?)(?:\?|$)',  # përkufizo X
+        r'(?:më\s+trego|me\s+trego|tregom)\s+(?:për|per)?\s*(.+?)(?:\?|$)',  # më trego për X
+    ]
+    
+    for pattern in definition_patterns:
+        match = re.search(pattern, query_lower)
+        if match:
+            term = match.group(1).strip().rstrip('?').strip()
+            definition = get_definition(term)
+            if definition:
+                return f"**{term.title()}**\n\n{definition}"
+    
+    # ═══════════════════════════════════════════════════════════════════════════
+    # 2) CHECK FOR WORD TRANSLATION QUERIES - "çfarë do të thotë X"
+    # ═══════════════════════════════════════════════════════════════════════════
+    translation_patterns = [
+        r'(?:çfarë|cfare)\s+(?:do\s+të\s+thotë|domethene)\s+(.+?)(?:\?|$)',
+        r'(?:si\s+përkthehet|perkthehet)\s+(.+?)(?:\?|$)',
+        r'(.+?)\s+(?:në\s+anglisht|anglisht)',
+    ]
+    
+    for pattern in translation_patterns:
+        match = re.search(pattern, query_lower)
+        if match:
+            word = match.group(1).strip().rstrip('?').strip()
+            translation = get_word_translation(word)
+            if translation:
+                return f"**{word}** në anglisht: *{translation}*"
+    
+    # ═══════════════════════════════════════════════════════════════════════════
+    # 3) CHECK FOR GREETINGS
+    # ═══════════════════════════════════════════════════════════════════════════
     greetings = ["përshëndetje", "mirëdita", "ckemi", "ç'kemi", "tungjatjeta", 
                  "si je", "si jeni", "mirëmëngjes", "mirëmbrëma", "pershendetje",
                  "pershendetje", "hej", "ej", "ore"]
@@ -643,27 +770,44 @@ def get_albanian_response(query: str) -> str | None:
             import random
             return random.choice(SENTENCE_PATTERNS["greeting_response"])
     
-    # Check for Clisonix questions
-    clisonix_keywords = ["clisonix", "kush", "themelues", "ceo", "krijoi", "ndërtoi", 
+    # ═══════════════════════════════════════════════════════════════════════════
+    # 4) CHECK FOR CLISONIX QUESTIONS
+    # ═══════════════════════════════════════════════════════════════════════════
+    clisonix_keywords = ["clisonix", "themelues", "ceo", "krijoi", "ndërtoi", 
                          "kompani", "platforma", "ledjan"]
     if any(k in query_lower for k in clisonix_keywords):
         if "kush" in query_lower or "ceo" in query_lower or "themelues" in query_lower:
             return "Ledjan Ahmati është Geschäftsführer dhe themeluesi i Clisonix. Ai ka krijuar këtë platformë të inteligjencës industriale që operon nën ABA GmbH (Amtsgericht Bochum HRB: 21069)."
+        if "çfarë" in query_lower or "cfare" in query_lower:
+            definition = get_definition("clisonix")
+            if definition:
+                return f"**Clisonix**\n\n{definition}"
     
-    # Check for "what can you do" questions
-    help_keywords = ["çfarë", "cfare", "mund", "bësh", "besh", "ndihmosh", "ndihmoj"]
-    if any(k in query_lower for k in help_keywords):
-        return """Mund të të ndihmoj me shumë gjëra:
+    # ═══════════════════════════════════════════════════════════════════════════
+    # 5) CHECK FOR "what can you do" QUESTIONS
+    # ═══════════════════════════════════════════════════════════════════════════
+    help_patterns = [
+        ("çfarë", "mund", "bësh"),
+        ("cfare", "mund", "besh"),
+        ("si mund", "ndihmosh"),
+        ("çfarë", "di", "bësh"),
+    ]
+    for pattern in help_patterns:
+        if all(p in query_lower for p in pattern):
+            return """Mund të të ndihmoj me shumë gjëra:
 
 🤖 **Teknologji & AI** - Pyetje rreth inteligjencës artificiale
 🔬 **Shkencë** - Biologji, fizikë, kimi
 🌍 **Gjeografi & Histori** - Fakte rreth botës
 💹 **Financa** - Koncepte ekonomike
 🇦🇱 **Shqipëri** - Kulturë, histori, gjuhë
+📖 **Përkufizime** - Shpjego koncepte ("çfarë është X?")
 
 Thjesht pyet dhe unë do të përpiqem të përgjigjem!"""
     
-    # Check for farewell
+    # ═══════════════════════════════════════════════════════════════════════════
+    # 6) CHECK FOR FAREWELL
+    # ═══════════════════════════════════════════════════════════════════════════
     farewells = ["lamtumirë", "mirupafshim", "shihemi", "natën", "ciao", "bye"]
     for f in farewells:
         if f in query_lower:

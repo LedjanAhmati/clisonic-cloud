@@ -1,24 +1,130 @@
 #!/usr/bin/env python3
 """
-DR. ALBANA - Medical Content Service
+DR. ALBANA - Medical Content Service v2.0
 100% CLINICAL. ZERO BCI. ZERO EEG. ZERO CODE.
-Specialized in: Cardiology, Hepatology, Endocrinology, Metabolic Disorders
+Specialized in: Cardiology, Hepatology, Endocrinology, Metabolic Disorders, Neurology
+
+FEATURES:
+- Automatic 5-8 articles/day generation
+- Integration with all Clisonix services
+- Automatic blog publishing via GitHub API
+- Deep academic/laboratory level content
+
 Author: Clisonix Cloud Medical Division
 """
 
-import os
-import json
-import uuid
 import asyncio
+import base64
+import json
+import logging
+import os
+import random
+import uuid
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+
 import httpx
-from datetime import datetime
-from typing import Optional, List, Dict, Any
-from fastapi import FastAPI, HTTPException, BackgroundTasks
-from fastapi.responses import JSONResponse, HTMLResponse
-from pydantic import BaseModel, Field
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 from dotenv import load_dotenv
+from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel, Field
 
 load_dotenv()
+
+# ============================================
+# LOGGING
+# ============================================
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger("DR.ALBANA")
+
+# ============================================
+# CONFIGURATION
+# ============================================
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
+GITHUB_REPO = os.getenv("GITHUB_REPO", "LedjanAhmati/clisonix-blog")
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://clisonix-ollama:11434")
+MEDICAL_MODEL = os.getenv("MEDICAL_MODEL", "llama3.2:1b")
+
+# Service URLs for integration
+OCEAN_URL = os.getenv("OCEAN_URL", "http://clisonix-ocean-core:8030")
+BLERINA_URL = os.getenv("BLERINA_URL", "http://clisonix-blerina:8035")
+BLOG_PUBLISHER_URL = os.getenv("BLOG_PUBLISHER_URL", "http://clisonix-blog-publisher:8041")
+
+# ============================================
+# QUALITY STANDARDS
+# ============================================
+MIN_MEDICAL_PILLAR_WORDS = 3500
+MAX_MEDICAL_PILLAR_WORDS = 6000
+MIN_QUALITY_SCORE = 0.90
+WORDS_PER_SECTION = 500  # Target 450-600 words per section
+ARTICLES_PER_DAY = 6  # Target 5-8 articles/day
+
+# ============================================
+# DAILY TOPIC CALENDAR - 5-8 TOPICS PER DAY
+# ============================================
+DAILY_TOPICS = {
+    "monday": [
+        {"domain": "cardiology", "topic": "Hypertensive cardiomyopathy: LVH progression and mortality", "focus": "left_ventricular_hypertrophy"},
+        {"domain": "cardiology", "topic": "Athlete's heart vs pathological hypertrophy: differential diagnosis", "focus": "sports_cardiology"},
+        {"domain": "hepatology", "topic": "Non-alcoholic fatty liver disease: from steatosis to cirrhosis", "focus": "nafld_progression"},
+        {"domain": "endocrinology", "topic": "Metabolic syndrome: the inflammatory pathway", "focus": "metabolic_inflammation"},
+        {"domain": "nephrology", "topic": "Cardiorenal syndrome: bidirectional organ crosstalk", "focus": "kidney_heart_axis"},
+        {"domain": "neurology", "topic": "Vascular dementia: preventive cardiology perspective", "focus": "cognitive_cardiovascular"},
+    ],
+    "tuesday": [
+        {"domain": "cardiology", "topic": "Heart failure with preserved ejection fraction: diagnostic challenges", "focus": "hfpef"},
+        {"domain": "cardiology", "topic": "Sudden cardiac death in young athletes: screening protocols", "focus": "scd_prevention"},
+        {"domain": "hepatology", "topic": "Hepatorenal syndrome: pathophysiology and management", "focus": "liver_kidney"},
+        {"domain": "endocrinology", "topic": "Thyroid dysfunction and cardiovascular risk", "focus": "thyroid_heart"},
+        {"domain": "pulmonology", "topic": "Pulmonary hypertension: right heart adaptation", "focus": "pulmonary_cardiac"},
+        {"domain": "neurology", "topic": "Autonomic dysfunction in diabetes: cardiovascular implications", "focus": "diabetic_autonomic"},
+    ],
+    "wednesday": [
+        {"domain": "cardiology", "topic": "Cardiac biomarkers: BNP and troponin in clinical practice", "focus": "cardiac_markers"},
+        {"domain": "cardiology", "topic": "Atrial fibrillation and stroke prevention", "focus": "af_stroke"},
+        {"domain": "hepatology", "topic": "Ammonia metabolism and hepatic encephalopathy", "focus": "ammonia_toxicity"},
+        {"domain": "endocrinology", "topic": "Cortisol dysregulation: Cushing's syndrome and cardiovascular risk", "focus": "hypercortisolism"},
+        {"domain": "nephrology", "topic": "Chronic kidney disease-mineral bone disorder", "focus": "ckd_mbd"},
+        {"domain": "hematology", "topic": "Thrombosis and cardiovascular disease: the clotting cascade", "focus": "thrombotic_cv"},
+    ],
+    "thursday": [
+        {"domain": "cardiology", "topic": "Cardiac remodeling: molecular mechanisms and therapeutic targets", "focus": "cardiac_remodeling"},
+        {"domain": "cardiology", "topic": "Pericardial diseases: from pericarditis to constrictive pericardium", "focus": "pericardial"},
+        {"domain": "hepatology", "topic": "Hepatocellular carcinoma: surveillance and early detection", "focus": "liver_cancer"},
+        {"domain": "endocrinology", "topic": "Diabetes and cardiovascular outcomes: SGLT2 inhibitors revolution", "focus": "diabetes_cv"},
+        {"domain": "pulmonology", "topic": "COPD and cardiovascular comorbidities", "focus": "copd_heart"},
+        {"domain": "oncology", "topic": "Cardio-oncology: anthracycline cardiotoxicity", "focus": "chemo_cardiotoxicity"},
+    ],
+    "friday": [
+        {"domain": "cardiology", "topic": "Aortic valve disease: from stenosis to replacement", "focus": "aortic_valve"},
+        {"domain": "cardiology", "topic": "Coronary microvascular dysfunction: the hidden ischemia", "focus": "cmd"},
+        {"domain": "hepatology", "topic": "Portal hypertension: complications and management", "focus": "portal_htn"},
+        {"domain": "endocrinology", "topic": "Obesity paradox: BMI and cardiovascular mortality", "focus": "obesity_paradox"},
+        {"domain": "nephrology", "topic": "Dialysis and cardiovascular risk: uremic cardiomyopathy", "focus": "dialysis_cv"},
+        {"domain": "geriatrics", "topic": "Frailty and cardiovascular disease in the elderly", "focus": "frailty_cv"},
+    ],
+    "saturday": [
+        {"domain": "cardiology", "topic": "Myocarditis: viral etiology and long-term outcomes", "focus": "myocarditis"},
+        {"domain": "cardiology", "topic": "Women and heart disease: sex-specific considerations", "focus": "women_cv"},
+        {"domain": "hepatology", "topic": "Alcoholic liver disease: cardiohepatic syndrome", "focus": "alcohol_liver_heart"},
+        {"domain": "endocrinology", "topic": "Growth hormone and cardiovascular system", "focus": "gh_cv"},
+        {"domain": "rheumatology", "topic": "Autoimmune diseases and accelerated atherosclerosis", "focus": "autoimmune_cv"},
+        {"domain": "neurology", "topic": "Stroke rehabilitation: neuroplasticity and recovery", "focus": "stroke_rehab"},
+    ],
+    "sunday": [
+        {"domain": "cardiology", "topic": "Cardiac imaging: echocardiography to cardiac MRI", "focus": "cardiac_imaging"},
+        {"domain": "cardiology", "topic": "Genetics of cardiomyopathy: from genotype to phenotype", "focus": "genetic_cm"},
+        {"domain": "hepatology", "topic": "Drug-induced liver injury: mechanisms and prevention", "focus": "dili"},
+        {"domain": "endocrinology", "topic": "Adrenal insufficiency: cardiovascular manifestations", "focus": "adrenal_cv"},
+        {"domain": "nephrology", "topic": "Hypertension and target organ damage", "focus": "htn_organ_damage"},
+        {"domain": "preventive_medicine", "topic": "Primary prevention of cardiovascular disease: guidelines update", "focus": "cv_prevention"},
+    ],
+}
 
 # ============================================
 # SYSTEM PROMPT - 100% MJEKËSOR, 0% TEKNIK
@@ -196,7 +302,7 @@ async def get_clinical_domains():
             {
                 "id": "hepatology",
                 "name": "Hepatology",
-                "biomarkers": ["ALT", "AST", "GGT", "Ammonia (NH3)", "IGF-1", "Bilirubin"],
+                "biomarkers": ["ALT", "AST", "GGT", "Ammonia (NH3)", "IGF-1", "Bilirubin", "Albumin"],
                 "conditions": ["NAFLD", "Cirrhosis", "Hepatic Steatosis", "Portal Hypertension"]
             },
             {
@@ -214,7 +320,7 @@ async def get_clinical_domains():
             {
                 "id": "pulmonology",
                 "name": "Pulmonology",
-                "biomarkers": ["FEV1", "FVC", "DLCO", "PaO2", "PaCO2"],
+                "biomarkers": ["FEV1", "FVC", "DLCO", "PaO2", "PaCO2", "SpO2"],
                 "conditions": ["Obesity Hypoventilation Syndrome", "OSA", "Restrictive Lung Disease"]
             },
             {
@@ -335,6 +441,35 @@ async def call_ollama(prompt: str, system_prompt: str) -> str:
     except Exception as e:
         return f"Connection error: {str(e)}"
 
+async def generate_section_content(section_name: str, title: str, topic: str, clinical_domain: str, biomarkers: str) -> str:
+    """Gjeneron përmbajtjen e një seksioni - MODELI BLERINA"""
+    
+    section_prompt = f"""You are DR. ALBANA, a senior medical specialist writing in Lancet/NEJM style.
+
+Write the "{section_name}" section for the article "{title}".
+
+TOPIC: {topic}
+CLINICAL DOMAIN: {clinical_domain}
+BIOMARKERS: {biomarkers}
+
+REQUIREMENTS FOR THIS SECTION:
+- Write 400-600 words
+- Use formal academic medical language
+- Include specific data: lab values, percentages, p-values, confidence intervals
+- Reference clinical guidelines (ESC, AHA, ACC, EASL, Endocrine Society)
+- Cite real studies from PubMed-indexed journals
+
+ABSOLUTELY FORBIDDEN:
+- NO BCI, EEG, electroencephalography
+- NO code, Python, JavaScript, algorithms
+- NO machine learning, AI, neural networks
+- NO signal processing, FastAPI, PyTorch
+
+Write the section now:"""
+
+    return await call_ollama(section_prompt, MEDICAL_SYSTEM_PROMPT)
+
+
 async def generate_medical_content(
     job_id: str,
     topic: str,
@@ -343,26 +478,29 @@ async def generate_medical_content(
     clinical_domain: str,
     include_references: bool
 ):
-    """Gjeneron artikull MJEKËSOR duke përdorur Ollama"""
+    """Gjeneron artikull MJEKËSOR duke përdorur Ollama - MODELI BLERINA (sektion për sektion)"""
+    
+    import logging
+    logger = logging.getLogger("DR.ALBANA")
     
     # Ndërto titullin
     title = custom_title
     if not title:
         if clinical_domain == "cardiology":
-            title = f"Cardiac Remodeling in Extreme Body Composition: A Comparative Study"
+            title = "Cardiac Remodeling in Extreme Body Composition: A Comparative Study"
         elif clinical_domain == "hepatology":
-            title = f"Hepatic Ammonia and IGF-1 Dysregulation: The Common Pathway"
+            title = "Hepatic Ammonia and IGF-1 Dysregulation: The Common Pathway"
         elif clinical_domain == "endocrinology":
-            title = f"Hormonal Disruption Across the BMI Spectrum"
+            title = "Hormonal Disruption Across the BMI Spectrum"
         elif clinical_domain == "corpus":
-            title = f"The Organic Stress Paradox: When Both Extremes Damage Vital Organs"
+            title = "The Organic Stress Paradox: When Both Extremes Damage Vital Organs"
         else:
-            title = f"The U-Shaped Mortality Curve: Clinical Evidence"
+            title = "The U-Shaped Mortality Curve: Clinical Evidence"
     
     # Seksionet e artikullit MJEKËSOR
     sections = [
         "Abstract",
-        "Introduction",
+        "Introduction", 
         "Methods: Study Design and Patient Selection",
         "Results: Biomarker Analysis",
         "Clinical Case Presentations",
@@ -376,37 +514,29 @@ async def generate_medical_content(
     
     biomarkers = get_biomarkers_for_domain(clinical_domain)
     
-    # Ndërto prompt-in për Ollama
-    generation_prompt = f"""
-Write a comprehensive medical research article.
-
-TITLE: {title}
-TOPIC: {topic}
-CLINICAL DOMAIN: {clinical_domain}
-TARGET LENGTH: {target_words} words
-
-BIOMARKERS TO DISCUSS: {biomarkers}
-
-SECTIONS TO INCLUDE:
-{chr(10).join(f"- {s}" for s in sections)}
-
-STRICT RULES:
-1. Write in formal academic medical style (Lancet, NEJM, BMJ format)
-2. Include specific numerical data: lab values, percentages, p-values
-3. Reference clinical guidelines (ESC, AHA, EASL, etc.)
-4. Discuss pathophysiology, diagnosis, and treatment
-5. NO CODE, NO PROGRAMMING, NO BCI, NO EEG, NO ALGORITHMS
-6. Focus on clinical medicine ONLY
-
-Begin the article now:
-"""
-
-    # Thirr Ollama
-    content = await call_ollama(generation_prompt, MEDICAL_SYSTEM_PROMPT)
+    # MODELI BLERINA: Gjenero sektion për sektion
+    content_parts = []
+    for i, section in enumerate(sections):
+        logger.info(f"[DR.ALBANA] Generating section {i+1}/{len(sections)}: {section}")
+        
+        section_content = await generate_section_content(
+            section_name=section,
+            title=title,
+            topic=topic,
+            clinical_domain=clinical_domain,
+            biomarkers=biomarkers
+        )
+        
+        if section_content and not section_content.startswith("Error"):
+            content_parts.append(f"## {section}\n\n{section_content}")
+        else:
+            # Fallback për këtë sektion
+            content_parts.append(f"## {section}\n\n*[Content pending...]*")
+        
+        # Pauzë e vogël për të mos mbingarkuar Ollama
+        await asyncio.sleep(1)
     
-    if not content or content.startswith("Error") or content.startswith("Connection"):
-        # Fallback content nëse Ollama nuk përgjigjet
-        content = generate_fallback_medical_content(title, topic, clinical_domain, biomarkers, sections)
+    content = "\n\n".join(content_parts)
     
     # Formato artikullin
     full_content = f"""# {title}
@@ -520,6 +650,290 @@ The Organic Stress Paradox represents a paradigm shift in our understanding of b
 2. Johnson M, et al. Hepatic ammonia in metabolic disorders. *NEJM*. 2023;388:567-578.
 3. Williams K, et al. Hormonal disruption in body composition extremes. *BMJ*. 2025;370:m2145.
 """
+
+
+# ============================================
+# GITHUB PUBLISHING - AUTOMATIC BLOG POSTING
+# ============================================
+
+async def publish_to_github(article_id: str, title: str, content: str, clinical_domain: str) -> Dict[str, Any]:
+    """Publikon artikullin automatikisht në GitHub Pages blog"""
+    
+    if not GITHUB_TOKEN:
+        logger.warning("GITHUB_TOKEN not set, skipping auto-publish")
+        return {"success": False, "error": "GITHUB_TOKEN not configured"}
+    
+    # Format filename for Jekyll
+    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    slug = title.lower().replace(" ", "-").replace(":", "")[:50]
+    filename = f"_posts/{date_str}-{slug}.md"
+    
+    # Create Jekyll front matter
+    jekyll_content = f"""---
+layout: post
+title: "{title}"
+date: {date_str}
+author: Dr. Albana
+categories: [{clinical_domain}, medical, research]
+tags: [clinical-medicine, {clinical_domain}, clisonix-medical]
+---
+
+{content}
+"""
+    
+    # Encode content
+    content_b64 = base64.b64encode(jekyll_content.encode()).decode()
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Check if file exists
+            check_url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{filename}"
+            headers = {
+                "Authorization": f"Bearer {GITHUB_TOKEN}",
+                "Accept": "application/vnd.github.v3+json"
+            }
+            
+            existing = await client.get(check_url, headers=headers)
+            sha = existing.json().get("sha") if existing.status_code == 200 else None
+            
+            # Create/Update file
+            data = {
+                "message": f"[DR.ALBANA] Add medical article: {title[:50]}",
+                "content": content_b64,
+                "branch": "main"
+            }
+            if sha:
+                data["sha"] = sha
+            
+            response = await client.put(check_url, headers=headers, json=data)
+            
+            if response.status_code in [200, 201]:
+                html_url = response.json().get("content", {}).get("html_url", "")
+                blog_url = f"https://ledjanahmati.github.io/clisonix-blog/{date_str.replace('-', '/')}/{slug}.html"
+                logger.info(f"✅ Published to blog: {blog_url}")
+                return {
+                    "success": True,
+                    "github_url": html_url,
+                    "blog_url": blog_url,
+                    "article_id": article_id
+                }
+            else:
+                logger.error(f"GitHub API error: {response.status_code} - {response.text[:200]}")
+                return {"success": False, "error": response.text[:200]}
+                
+    except Exception as e:
+        logger.error(f"Publish error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+# ============================================
+# DAILY AUTOMATIC GENERATION - 5-8 ARTICLES/DAY
+# ============================================
+
+async def generate_daily_articles():
+    """Gjeneron artikujt e ditës automatikisht - 5-8 artikuj"""
+    
+    day_name = datetime.now(timezone.utc).strftime("%A").lower()
+    topics = DAILY_TOPICS.get(day_name, DAILY_TOPICS["monday"])
+    
+    # Select 5-8 random topics for today
+    num_articles = random.randint(5, min(8, len(topics)))
+    selected_topics = random.sample(topics, num_articles)
+    
+    logger.info(f"🏥 DR.ALBANA: Starting daily generation - {num_articles} articles for {day_name.title()}")
+    
+    published_articles = []
+    
+    for i, topic_info in enumerate(selected_topics):
+        logger.info(f"📝 Generating article {i+1}/{num_articles}: {topic_info['topic'][:50]}...")
+        
+        job_id = f"med_{uuid.uuid4().hex[:12]}"
+        
+        try:
+            # Generate article
+            await generate_medical_content(
+                job_id=job_id,
+                topic=topic_info["topic"],
+                custom_title=None,
+                target_words=4000,
+                clinical_domain=topic_info["domain"],
+                include_references=True
+            )
+            
+            # Get generated article
+            article = generated_pillars.get(job_id)
+            if article:
+                # Publish to GitHub
+                publish_result = await publish_to_github(
+                    article_id=job_id,
+                    title=article["title"],
+                    content=article["content"],
+                    clinical_domain=topic_info["domain"]
+                )
+                
+                if publish_result.get("success"):
+                    published_articles.append({
+                        "id": job_id,
+                        "title": article["title"],
+                        "domain": topic_info["domain"],
+                        "blog_url": publish_result.get("blog_url"),
+                        "word_count": article.get("word_count", 0)
+                    })
+                    logger.info(f"✅ Article {i+1} published: {article['title'][:40]}...")
+                else:
+                    logger.warning(f"⚠️ Article {i+1} generated but not published: {publish_result.get('error')}")
+            
+            # Wait between articles to avoid rate limits
+            await asyncio.sleep(30)
+            
+        except Exception as e:
+            logger.error(f"❌ Error generating article {i+1}: {e}")
+            continue
+    
+    logger.info(f"🎉 Daily generation complete: {len(published_articles)}/{num_articles} articles published")
+    
+    return {
+        "date": datetime.now(timezone.utc).isoformat(),
+        "day": day_name,
+        "total_generated": len(published_articles),
+        "articles": published_articles
+    }
+
+
+# ============================================
+# PROJECT INTEGRATION - CONNECT WITH ALL SERVICES
+# ============================================
+
+async def get_context_from_ocean(topic: str) -> Optional[Dict[str, Any]]:
+    """Merr kontekst nga Ocean Core për të pasuruar artikullin"""
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{OCEAN_URL}/api/v1/chat/specialized",
+                json={
+                    "query": f"Provide medical context for: {topic}",
+                    "domain": "medical"
+                }
+            )
+            if response.status_code == 200:
+                return response.json()
+    except Exception as e:
+        logger.debug(f"Ocean context unavailable: {e}")
+    return None
+
+
+async def sync_with_blerina(article: Dict[str, Any]) -> bool:
+    """Sinkronizon me Blerina për content strategy"""
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{BLERINA_URL}/api/v1/content/register",
+                json={
+                    "source": "dr_albana",
+                    "article_id": article["id"],
+                    "title": article["title"],
+                    "domain": article.get("clinical_domain", "medical"),
+                    "word_count": article.get("word_count", 0)
+                }
+            )
+            return response.status_code == 200
+    except Exception:
+        return False
+
+
+# ============================================
+# API ENDPOINTS FOR AUTOMATION
+# ============================================
+
+@app.post("/api/v1/medical/auto-generate")
+async def trigger_auto_generation(background_tasks: BackgroundTasks):
+    """Triggeron gjenerimin automatik të artikujve të ditës"""
+    background_tasks.add_task(generate_daily_articles)
+    return {
+        "status": "started",
+        "message": "Daily article generation started in background",
+        "target_articles": f"{ARTICLES_PER_DAY} articles"
+    }
+
+
+@app.get("/api/v1/medical/stats")
+async def get_generation_stats():
+    """Statistikat e gjenerimit"""
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today_articles = [p for p in generated_pillars.values() if p["created_at"].startswith(today)]
+    
+    return {
+        "service": "DR.ALBANA v2.0",
+        "total_articles": len(generated_pillars),
+        "today_articles": len(today_articles),
+        "target_per_day": ARTICLES_PER_DAY,
+        "domains": list(set(p.get("clinical_domain", "unknown") for p in generated_pillars.values())),
+        "auto_publish_enabled": bool(GITHUB_TOKEN),
+        "blog_repo": GITHUB_REPO
+    }
+
+
+@app.post("/api/v1/medical/publish/{article_id}")
+async def publish_single_article(article_id: str):
+    """Publikon një artikull të vetëm në blog"""
+    if article_id not in generated_pillars:
+        raise HTTPException(status_code=404, detail=f"Article {article_id} not found")
+    
+    article = generated_pillars[article_id]
+    result = await publish_to_github(
+        article_id=article_id,
+        title=article["title"],
+        content=article["content"],
+        clinical_domain=article.get("clinical_domain", "medical")
+    )
+    
+    return result
+
+
+# ============================================
+# SCHEDULER SETUP
+# ============================================
+
+scheduler = AsyncIOScheduler()
+
+@app.on_event("startup")
+async def startup_event():
+    """Inicializon scheduler-in për gjenerim automatik"""
+    logger.info("🏥 DR.ALBANA Medical Content Service v2.0 starting...")
+    
+    # Schedule daily generation at 06:00, 12:00, and 18:00 UTC
+    scheduler.add_job(
+        generate_daily_articles,
+        CronTrigger(hour=6, minute=0),
+        id="morning_generation",
+        name="Morning Article Generation (06:00 UTC)"
+    )
+    
+    scheduler.add_job(
+        generate_daily_articles,
+        CronTrigger(hour=12, minute=0),
+        id="noon_generation", 
+        name="Noon Article Generation (12:00 UTC)"
+    )
+    
+    scheduler.add_job(
+        generate_daily_articles,
+        CronTrigger(hour=18, minute=0),
+        id="evening_generation",
+        name="Evening Article Generation (18:00 UTC)"
+    )
+    
+    scheduler.start()
+    logger.info("📅 Scheduler started: 3 daily generation cycles (06:00, 12:00, 18:00 UTC)")
+    logger.info(f"📊 Target: {ARTICLES_PER_DAY} articles per cycle = ~18 articles/day")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Ndalon scheduler-in"""
+    scheduler.shutdown()
+    logger.info("🛑 DR.ALBANA scheduler stopped")
+
 
 # ============================================
 # MAIN
