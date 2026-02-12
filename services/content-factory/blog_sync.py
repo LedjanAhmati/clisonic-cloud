@@ -357,7 +357,7 @@ New articles are published daily covering topics in healthcare technology and AI
         try:
             # Configure git
             subprocess.run(
-                ["git", "config", "user.email", "ai@clisonix.com"],
+                ["git", "config", "user.email", "clisonix@pm.me"],
                 cwd=self.blog_dir, check=True
             )
             subprocess.run(
