@@ -317,7 +317,11 @@ async def get_unpublished_articles() -> List[Dict[str, str]]:
     """Get list of unpublished articles from both sources, with filesystem fallback"""
     unpublished = []
     tracker = load_published_tracker()
-    published_ids = set(tracker.get("published", []))
+    # Start fresh - only track going forward
+    published_ids = set()
+    
+    # Only republish articles from Feb 13 onwards (after the outage on Feb 12)
+    min_date = "2026-02-13"
     
     # Check Blerina articles (API or filesystem)
     blerina_found = False
@@ -341,8 +345,11 @@ async def get_unpublished_articles() -> List[Dict[str, str]]:
                 article_id = md_file.stem
                 if article_id not in published_ids:
                     title = md_file.read_text()[:100].split('\n')[0].strip('#').strip()
-                    unpublished.append({"id": article_id, "source": "blerina", "title": title})
-                    logger.info(f"Discovered Blerina article from filesystem: {article_id}")
+                    # Only include articles modified after min_date
+                    mtime_date = datetime.fromtimestamp(md_file.stat().st_mtime).strftime("%Y-%m-%d")
+                    if mtime_date >= min_date:
+                        unpublished.append({"id": article_id, "source": "blerina", "title": title})
+                        logger.info(f"Discovered Blerina article from filesystem (date: {mtime_date}): {article_id}")
         except Exception as e:
             logger.warning(f"Error scanning Blerina filesystem: {e}")
     
@@ -368,8 +375,11 @@ async def get_unpublished_articles() -> List[Dict[str, str]]:
                 article_id = md_file.stem
                 if article_id not in published_ids:
                     title = md_file.read_text()[:100].split('\n')[0].strip('#').strip()
-                    unpublished.append({"id": article_id, "source": "dr_albana", "title": title})
-                    logger.info(f"Discovered Dr. Albana article from filesystem: {article_id}")
+                    # Only include articles modified after min_date
+                    mtime_date = datetime.fromtimestamp(md_file.stat().st_mtime).strftime("%Y-%m-%d")
+                    if mtime_date >= min_date:
+                        unpublished.append({"id": article_id, "source": "dr_albana", "title": title})
+                        logger.info(f"Discovered Dr. Albana article from filesystem (date: {mtime_date}): {article_id}")
         except Exception as e:
             logger.warning(f"Error scanning Dr. Albana filesystem: {e}")
     
