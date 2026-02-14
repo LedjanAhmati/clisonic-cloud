@@ -901,16 +901,22 @@ def load_articles_from_filesystem():
     global generated_pillars
     
     output_dir = "/app/generated_medical_pillars"
+    print(f"[STARTUP] Loading articles from {output_dir}...", flush=True)
     
     if not os.path.exists(output_dir):
-        logger.warning(f"⚠️ Article directory not found: {output_dir}")
+        msg = f"⚠️ Article directory not found: {output_dir}"
+        print(f"[STARTUP] {msg}", flush=True)
+        logger.warning(msg)
         return
     
     # Iterate through all JSON files in the directory
     json_files = [f for f in os.listdir(output_dir) if f.endswith('.json')]
+    print(f"[STARTUP] Found {len(json_files)} JSON files", flush=True)
     
     if not json_files:
-        logger.info(f"ℹ️ No articles found in {output_dir}")
+        msg = f"ℹ️ No articles found in {output_dir}"
+        print(f"[STARTUP] {msg}", flush=True)
+        logger.info(msg)
         return
     
     loaded_count = 0
@@ -923,10 +929,14 @@ def load_articles_from_filesystem():
                 generated_pillars[article_id] = article
                 loaded_count += 1
         except Exception as e:
-            logger.error(f"❌ Error loading {json_file}: {e}")
+            err_msg = f"❌ Error loading {json_file}: {e}"
+            print(f"[STARTUP] {err_msg}", flush=True)
+            logger.error(err_msg)
             continue
     
-    logger.info(f"✅ Loaded {loaded_count} articles from filesystem into memory")
+    msg = f"✅ Loaded {loaded_count} articles from filesystem into memory"
+    print(f"[STARTUP] {msg}", flush=True)
+    logger.info(msg)
 
 
 @app.on_event("startup")
