@@ -896,46 +896,10 @@ async def publish_single_article(article_id: str):
 
 scheduler = AsyncIOScheduler()
 
-def load_articles_from_filesystem():
-    """🔄 Load existing articles from filesystem into generated_pillars on startup"""
-    global generated_pillars
-    
-    output_dir = "/app/generated_medical_pillars"
-    
-    if not os.path.exists(output_dir):
-        logger.warning(f"⚠️ Article directory not found: {output_dir}")
-        return
-    
-    # Iterate through all JSON files in the directory
-    json_files = [f for f in os.listdir(output_dir) if f.endswith('.json')]
-    
-    if not json_files:
-        logger.info(f"ℹ️ No articles found in {output_dir}")
-        return
-    
-    loaded_count = 0
-    for json_file in json_files:
-        try:
-            json_path = os.path.join(output_dir, json_file)
-            with open(json_path, 'r') as f:
-                article = json.load(f)
-                article_id = article.get('id') or json_file.replace('.json', '')
-                generated_pillars[article_id] = article
-                loaded_count += 1
-        except Exception as e:
-            logger.error(f"❌ Error loading {json_file}: {e}")
-            continue
-    
-    logger.info(f"✅ Loaded {loaded_count} articles from filesystem into memory")
-
-
 @app.on_event("startup")
 async def startup_event():
     """Inicializon scheduler-in për gjenerim automatik"""
     logger.info("🏥 DR.ALBANA Medical Content Service v2.0 starting...")
-    
-    # 💾 LOAD existing articles from filesystem on startup
-    load_articles_from_filesystem()
     
     # Schedule daily generation at 06:00, 12:00, and 18:00 UTC
     scheduler.add_job(
