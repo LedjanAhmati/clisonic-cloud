@@ -314,34 +314,64 @@ async def fetch_dr_albana_article(article_id: str) -> Optional[str]:
     return None
 
 async def get_unpublished_articles() -> List[Dict[str, str]]:
-    """Get list of unpublished articles from both sources"""
+    """Get list of unpublished articles from both sources, with filesystem fallback"""
     unpublished = []
     tracker = load_published_tracker()
     published_ids = set(tracker.get("published", []))
     
-    # Check Blerina articles
+    # Check Blerina articles (API or filesystem)
+    blerina_found = False
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get("http://clisonix-blerina:8035/api/v1/pillars")
             if response.status_code == 200:
                 pillars = response.json().get("pillars", [])
-                for p in pillars:
-                    if p["id"] not in published_ids:
-                        unpublished.append({"id": p["id"], "source": "blerina", "title": p.get("title", "")})
+                if pillars:  # Only use if API returned data
+                    blerina_found = True
+                    for p in pillars:
+                        if p["id"] not in published_ids:
+                            unpublished.append({"id": p["id"], "source": "blerina", "title": p.get("title", "")})
     except Exception as e:
-        logger.warning(f"Could not fetch Blerina articles: {e}")
+        logger.warning(f"Could not fetch Blerina articles via API: {e}")
     
-    # Check Dr. Albana articles
+    # Fallback: scan filesystem for Blerina articles
+    if not blerina_found and BLERINA_PILLARS_DIR.exists():
+        try:
+            for md_file in sorted(BLERINA_PILLARS_DIR.glob("*.md"), reverse=True):
+                article_id = md_file.stem
+                if article_id not in published_ids:
+                    title = md_file.read_text()[:100].split('\n')[0].strip('#').strip()
+                    unpublished.append({"id": article_id, "source": "blerina", "title": title})
+                    logger.info(f"Discovered Blerina article from filesystem: {article_id}")
+        except Exception as e:
+            logger.warning(f"Error scanning Blerina filesystem: {e}")
+    
+    # Check Dr. Albana articles (API or filesystem)
+    dr_albana_found = False
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get("http://clisonix-dr-albana:8040/api/v1/medical/pillars")
             if response.status_code == 200:
                 pillars = response.json().get("pillars", [])
-                for p in pillars:
-                    if p["id"] not in published_ids:
-                        unpublished.append({"id": p["id"], "source": "dr_albana", "title": p.get("title", "")})
+                if pillars:  # Only use if API returned data
+                    dr_albana_found = True
+                    for p in pillars:
+                        if p["id"] not in published_ids:
+                            unpublished.append({"id": p["id"], "source": "dr_albana", "title": p.get("title", "")})
     except Exception as e:
-        logger.warning(f"Could not fetch Dr. Albana articles: {e}")
+        logger.warning(f"Could not fetch Dr. Albana articles via API: {e}")
+    
+    # Fallback: scan filesystem for Dr. Albana articles
+    if not dr_albana_found and DR_ALBANA_PILLARS_DIR.exists():
+        try:
+            for md_file in sorted(DR_ALBANA_PILLARS_DIR.glob("*.md"), reverse=True):
+                article_id = md_file.stem
+                if article_id not in published_ids:
+                    title = md_file.read_text()[:100].split('\n')[0].strip('#').strip()
+                    unpublished.append({"id": article_id, "source": "dr_albana", "title": title})
+                    logger.info(f"Discovered Dr. Albana article from filesystem: {article_id}")
+        except Exception as e:
+            logger.warning(f"Error scanning Dr. Albana filesystem: {e}")
     
     return unpublished
 
