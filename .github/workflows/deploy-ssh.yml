@@ -2,7 +2,7 @@
 # CLISONIX CLOUD - DOCKER COMPOSE DEPLOYMENT VIA SSH
 # =============================================================================
 # Deploys to Hetzner server using SSH and Docker Compose
-# Server: 46.225.14.83 (hetzner-new)
+# Production: 46.224.203.89 (Hetzner Nürnberg)
 #
 # This workflow:
 # 1. SSHs to Hetzner and runs git pull
@@ -41,7 +41,7 @@ permissions:
   contents: read
 
 env:
-  HETZNER_IP: 46.225.14.83
+  HETZNER_IP: 46.224.203.89
   DEPLOY_PATH: /root/Clisonix-cloud
 
 jobs:
