@@ -434,7 +434,7 @@ services:
   # TRAEFIK (API Gateway & Load Balancer)
   # ==========================
   traefik:
-    image: traefik:v2.10
+    image: traefik:v3.0
     container_name: clisonix-traefik
     command:
       - "--api.insecure=true"
