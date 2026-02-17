@@ -375,70 +375,14 @@ async def generate_medical_pillar(request: MedicalPillarRequest, background_task
 
 @app.get("/api/v1/medical/pillars/{pillar_id}")
 async def get_medical_pillar(pillar_id: str):
-    """Merr artikullin MJEKËSOR të gjeneruar - me fallback filesystem"""
-    global generated_pillars
-    
-    # Check in-memory first
-    if pillar_id in generated_pillars:
-        return generated_pillars[pillar_id]
-    
-    # Try filesystem fallback
-    output_dir = "/app/generated_medical_pillars"
-    
-    # Try JSON file
-    json_path = os.path.join(output_dir, f"{pillar_id}.json")
-    if os.path.exists(json_path):
-        try:
-            with open(json_path, 'r') as f:
-                article = json.load(f)
-                generated_pillars[pillar_id] = article
-                logger.info(f"Loaded article {pillar_id} from filesystem JSON")
-                return article
-        except Exception as e:
-            logger.error(f"Error loading {json_path}: {e}")
-    
-    # Try MD file as fallback
-    md_path = os.path.join(output_dir, f"{pillar_id}.md")
-    if os.path.exists(md_path):
-        try:
-            with open(md_path, 'r') as f:
-                content = f.read()
-                return {
-                    "id": pillar_id,
-                    "title": "Untitled",
-                    "content": content,
-                    "clinical_domain": "unknown",
-                    "word_count": len(content.split()),
-                    "status": "from_filesystem"
-                }
-        except Exception as e:
-            logger.error(f"Error loading {md_path}: {e}")
-    
-    raise HTTPException(status_code=404, detail="Medical article not found")
+    """Merr artikullin MJEKËSOR të gjeneruar"""
+    if pillar_id not in generated_pillars:
+        raise HTTPException(status_code=404, detail="Medical article not found")
+    return generated_pillars[pillar_id]
 
 @app.get("/api/v1/medical/pillars")
 async def list_medical_pillars():
-    """Listo të gjithë artikujt MJEKËSORË - me fallback filesystem"""
-    global generated_pillars
-    
-    # If in-memory dict is empty, load from filesystem
-    if not generated_pillars:
-        logger.info("In-memory pillars empty, scanning filesystem...")
-        output_dir = "/app/generated_medical_pillars"
-        
-        if os.path.exists(output_dir):
-            json_files = [f for f in os.listdir(output_dir) if f.endswith('.json')]
-            for json_file in json_files:
-                try:
-                    json_path = os.path.join(output_dir, json_file)
-                    with open(json_path, 'r') as f:
-                        article = json.load(f)
-                        article_id = article.get('id') or json_file.replace('.json', '')
-                        generated_pillars[article_id] = article
-                        logger.info(f"Loaded article {article_id} from filesystem")
-                except Exception as e:
-                    logger.error(f"Error loading {json_file}: {e}")
-    
+    """Listo të gjithë artikujt MJEKËSORË"""
     return {
         "total": len(generated_pillars),
         "pillars": [

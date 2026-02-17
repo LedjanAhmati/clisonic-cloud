@@ -199,52 +199,57 @@ New articles are published daily covering topics in healthcare technology and AI
         static_dir = self.blog_dir / "static"
         if not static_dir.exists():
             return
+        
         # Get all HTML articles sorted by date (newest first)
-        article_files = sorted(static_dir.glob("*.html"), reverse=True)
-
-        articles = []
-        for article in article_files:
-            name = article.stem
-            match = re.match(r"(\d{4})-(\d{2})-(\d{2})-(.+)", name)
-            if match:
-                date_str = f"{match.group(1)}-{match.group(2)}-{match.group(3)}"
-                title = match.group(4).replace("-", " ").title()
-            else:
-                date_str = "2025-01-01"
-                title = name.replace("-", " ").title()
-
-            articles.append({
-                "filename": article.name,
-                "title": title,
-                "date": date_str,
-                "author": "Clisonix"
-            })
-
-        # Prefer the modern categorized template if present
-        template_path = Path(__file__).parent / "blog_index_template.html"
-        if template_path.exists():
-            template = template_path.read_text(encoding="utf-8")
-            articles_json = json.dumps(articles, ensure_ascii=False, indent=2)
-            html = template.replace("__ARTICLES_DATA__", articles_json)
-            (self.blog_dir / "index.html").write_text(html, encoding="utf-8")
-            return
-
-        # Fallback: keep legacy index structure if template is missing
+        articles = sorted(static_dir.glob("*.html"), reverse=True)
+        
+        # Generate article list HTML
         article_items = []
         for article in articles:
-            date_display = "-".join(reversed(article["date"].split("-")))
+            # Parse filename: 2026-02-06-title-here.html
+            name = article.stem
+            parts = name.split("-", 3)
+            if len(parts) >= 4:
+                title_slug = parts[3]
+                # Convert slug to title
+                title = title_slug.replace("-", " ").title()
+                if len(title) > 60:
+                    title = title[:57] + "..."
+                date_display = f"{parts[1]}/{parts[2]}/{parts[0]}"
+            else:
+                title = name.replace("-", " ").title()
+                date_display = "Recent"
+            
             article_items.append(
-                f'            <article><h2><a href="static/{article["filename"]}">{article["title"]}</a></h2>'
+                f'            <article><h2><a href="static/{article.name}">{title}</a></h2>'
                 f'<span class="date">{date_display}</span></article>'
             )
-
+        
         articles_html = "\n".join(article_items)
+        
         index_html = f'''<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Clisonix Blog - AI & Industrial Intelligence</title>
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 100%); color: #e0e0e0; min-height: 100vh; }}
+        header {{ background: rgba(0,0,0,0.3); padding: 2rem; text-align: center; border-bottom: 1px solid #333; }}
+        header h1 {{ font-size: 2.5rem; background: linear-gradient(90deg, #00d4ff, #7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }}
+        header p {{ color: #888; margin-top: 0.5rem; }}
+        .count {{ color: #00d4ff; font-size: 0.9rem; margin-top: 1rem; }}
+        main {{ max-width: 900px; margin: 0 auto; padding: 2rem; }}
+        .articles {{ display: grid; gap: 1.5rem; }}
+        article {{ background: rgba(255,255,255,0.05); border: 1px solid #333; border-radius: 12px; padding: 1.5rem; transition: all 0.3s; }}
+        article:hover {{ border-color: #00d4ff; transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,212,255,0.1); }}
+        article h2 {{ font-size: 1.2rem; margin-bottom: 0.5rem; }}
+        article h2 a {{ color: #00d4ff; text-decoration: none; }}
+        article h2 a:hover {{ text-decoration: underline; }}
+        article .date {{ color: #666; font-size: 0.85rem; }}
+        footer {{ text-align: center; padding: 2rem; color: #555; border-top: 1px solid #333; margin-top: 3rem; }}
+    </style>
 </head>
 <body>
     <header>
@@ -258,12 +263,12 @@ New articles are published daily covering topics in healthcare technology and AI
         </div>
     </main>
     <footer>
-        <p>© 2026 Clisonix - ABA GmbH</p>
+        <p>&copy; 2026 Clisonix - Powered by AI</p>
     </footer>
 </body>
 </html>'''
-
-        (self.blog_dir / "index.html").write_text(index_html, encoding="utf-8")
+        
+        (self.blog_dir / "index.html").write_text(index_html)
         logger.info(f"Regenerated index.html with {len(articles)} articles")
 
     async def sync(self, push: bool = True) -> Dict[str, Any]:

@@ -904,8 +904,9 @@ CLISONIX_KNOWLEDGE = [
         answer_template="""
 🏢 **Clisonix - Industrial Intelligence Platform**
 
-👤 **Themelues & CEO:** **Ledjan Ahmati**
-🏛️ **Organizata:** WEB8euroweb GmbH
+👤 **Themelues & Geschäftsführer:** **Ledjan Ahmati**
+🏛️ **Organizata:** ABA GmbH (Amtsgericht Bochum HRB: 21069)
+📅 **Themeluar:** 2025
 🌐 **Website:** www.clisonix.com
 📧 **Email:** support@clisonix.com
 📞 **Telefon:** +49 2327 9954413
@@ -917,7 +918,7 @@ CLISONIX_KNOWLEDGE = [
 - AI Insights me ASI Trinity (ALBA, ALBI, JONA)
 - Telemetri dhe siguri
 
-💡 Ledjan Ahmati e themeloi Clisonix me vizionin për të krijuar një platformë 
+💡 Ledjan Ahmati e themeloi Clisonix në 2025 me vizionin për të krijuar një platformë 
 modulare që u jep bizneseve qartësi, kontroll dhe inteligjencë - nga cloud deri te sensorët LoRa.
         """,
         keywords=["founder", "themelues", "ceo", "created", "krijoi", "built", 

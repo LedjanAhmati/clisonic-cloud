@@ -4,6 +4,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { currentUser } from "@clerk/nextjs/server";
 import Stripe from "stripe";
 
 export async function GET() {
@@ -24,8 +25,9 @@ export async function GET() {
       
     });
 
-    // Get customer email from session/auth
-    const customerEmail = process.env.USER_EMAIL || "customer@clisonix.com";
+    // Get customer email from Clerk session
+    const user = await currentUser();
+    const customerEmail = user?.emailAddresses?.[0]?.emailAddress || process.env.USER_EMAIL || "customer@clisonix.com";
 
     // Search for customer by email
     const customers = await stripe.customers.list({

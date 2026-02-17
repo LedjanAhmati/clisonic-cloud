@@ -232,7 +232,7 @@ FORBIDDEN_FABRICATIONS = [
     ("scientific paper on consciousness", "blog articles on EEG and AI"),
     
     # Don't fabricate company details
-    ("founded in Silicon Valley", "ABA GmbH"),
+    ("founded in Silicon Valley", "ABA GmbH, founded 2025 in Germany"),
     ("billion dollar", "technology company"),
     
     # Don't claim capabilities that don't exist

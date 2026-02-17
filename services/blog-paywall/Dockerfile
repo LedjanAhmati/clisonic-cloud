@@ -11,7 +11,7 @@ RUN pip install --no-cache-dir \
     pydantic \
     python-multipart
 
-COPY blog_paywall_service.py .
+COPY services/blog-paywall/blog_paywall_service.py .
 
 EXPOSE 8020
 

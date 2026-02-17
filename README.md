@@ -28,8 +28,9 @@ Industrial Backend & Payment System
 
 **Business Information:**
 
-- **Owner:** Ledjan Ahmati
-- **Company:** WEB8euroweb GmbH
+- **Owner:** Ledjan Ahmati (Geschäftsführer / Inhaber)
+- **Company:** ABA GmbH
+- **Registration:** Amtsgericht Bochum HRB: 21069
 - **SEPA IBAN:** `${SEPA_IBAN}` (Configured via secrets)
 - **PayPal:** `${PAYPAL_EMAIL}` (Configured via secrets)
 - **Data Policy:** Production credentials managed via secrets - See SECURITY.md

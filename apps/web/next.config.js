@@ -36,6 +36,9 @@ const API_BASE =
 const REPORTING_BASE =
   process.env.REPORTING_INTERNAL_URL ||
   (isDev ? "http://localhost:8000" : "http://clisonix-api:8000");
+const OCEAN_BASE =
+  process.env.OCEAN_INTERNAL_URL ||
+  (isDev ? "http://localhost:8030" : "http://clisonix-ocean-core:8030");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -254,6 +257,38 @@ const nextConfig = {
       {
         source: "/api/system/:path*",
         destination: `${API_BASE}/api/system/:path*`,
+      },
+      // ===== OCEAN CORE (Port 8030) =====
+      // Zürich Deterministic Engine
+      {
+        source: "/api/zurich/:path*",
+        destination: `${OCEAN_BASE}/api/v1/zurich/:path*`,
+      },
+      {
+        source: "/api/zurich",
+        destination: `${OCEAN_BASE}/api/v1/zurich`,
+      },
+      // Trinity Debate Engine
+      {
+        source: "/api/debate/stream",
+        destination: `${OCEAN_BASE}/api/v1/debate/stream`,
+      },
+      {
+        source: "/api/debate/:path*",
+        destination: `${OCEAN_BASE}/api/v1/debate/:path*`,
+      },
+      {
+        source: "/api/debate",
+        destination: `${OCEAN_BASE}/api/v1/debate`,
+      },
+      // Ocean Core general
+      {
+        source: "/api/ocean/:path*",
+        destination: `${OCEAN_BASE}/api/v1/:path*`,
+      },
+      {
+        source: "/api/ocean",
+        destination: `${OCEAN_BASE}/api/v1/health`,
       },
     ];
   },

@@ -700,13 +700,93 @@ services:
       PORT: "8035"
       YOUTUBE_CHANNEL_ID: "UCuCd7kgikh6CM2hAh5eAIMA"
       YOUTUBE_API_KEY: "${YOUTUBE_API_KEY:-}"
+      VIDEO_GENERATOR_URL: "http://clisonix-video-generator:8029"
     ports:
       - "8035:8035"
     depends_on:
       ollama:
         condition: service_healthy
+      video-generator:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8035/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ============================================
+  # DR. ALBANA - Medical Content Service
+  # 100% Clinical, Zero BCI/EEG/Code
+  # Specialized: Cardiology, Hepatology, Endocrinology, Corpus
+  # ============================================
+  dr_albana:
+    build:
+      context: ./services/dr_albana
+      dockerfile: Dockerfile
+    container_name: clisonix-dr-albana
+    environment:
+      PYTHONUNBUFFERED: "1"
+      OLLAMA_URL: "http://clisonix-ollama:11434"
+      MEDICAL_MODEL: "llama3.2:1b"
+      DR_ALBANA_PORT: "8040"
+    ports:
+      - "8040:8040"
+    volumes:
+      - ./generated_medical_pillars:/app/generated_medical_pillars
+    depends_on:
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8040/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # BLOG AUTO-PUBLISHER (GitHub Pages Integration)
+  blog_publisher:
+    build:
+      context: ./services/blog_publisher
+      dockerfile: Dockerfile
+    container_name: clisonix-blog-publisher
+    environment:
+      PYTHONUNBUFFERED: "1"
+      PUBLISHER_PORT: "8041"
+      GITHUB_TOKEN: "${GITHUB_TOKEN:-}"
+      GITHUB_REPO: "ledjanahmati/clisonix-blog"
+      GITHUB_BRANCH: "main"
+      POSTS_PER_DAY: "4"
+    ports:
+      - "8041:8041"
+    volumes:
+      - ./all_pillars:/app/blerina_pillars
+      - ./generated_medical_pillars:/app/medical_pillars
+    depends_on:
+      - blerina
+      - dr_albana
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8041/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # BLOG PAYWALL (Stripe Subscription Service)
+  blog-paywall:
+    build:
+      context: .
+      dockerfile: services/blog-paywall/Dockerfile
+    container_name: clisonix-blog-paywall
+    environment:
+      PYTHONUNBUFFERED: "1"
+      PORT: "8020"
+      STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY:-}"
+      STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET:-}"
+    ports:
+      - "8020:8020"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8020/health"]
       interval: 30s
       timeout: 10s
       retries: 3

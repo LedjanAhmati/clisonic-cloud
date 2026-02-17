@@ -128,6 +128,22 @@ const apiCategories = [
     docsUrl: '/docs#ocean'
   },
   {
+    name: 'Zürich Engine',
+    icon: '🎯',
+    endpoints: 2,
+    description: '9-stage deterministic reasoning, no AI randomness',
+    basePath: '/zurich',
+    docsUrl: '/docs#zurich'
+  },
+  {
+    name: 'Trinity Debate',
+    icon: '🎭',
+    endpoints: 2,
+    description: '5 AI personas debate any topic',
+    basePath: '/debate',
+    docsUrl: '/docs#debate'
+  },
+  {
     name: 'Billing',
     icon: '💳',
     endpoints: 8,

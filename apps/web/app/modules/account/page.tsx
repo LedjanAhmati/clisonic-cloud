@@ -464,8 +464,8 @@ export default function AccountPage() {
               <h1 className="text-xl font-semibold">👤 {t('account.title')}</h1>
             </div>
             <div className="flex items-center gap-3">
-              <div className={`px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r ${getPlanColor(user.plan)}`}>
-                {user.plan.charAt(0).toUpperCase() + user.plan.slice(1)} Plan
+              <div className={`px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r ${getPlanColor(subscription?.plan?.toLowerCase() || user.plan)}`}>
+                {subscription?.plan || (user.plan.charAt(0).toUpperCase() + user.plan.slice(1))} Plan
               </div>
             </div>
           </div>

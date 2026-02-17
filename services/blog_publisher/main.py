@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-ÔòöÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòù
-Ôòæ  CLISONIX BLOG AUTO-PUBLISHER                                                 Ôòæ
-Ôòæ  Automatically publishes articles from Blerina & Dr. Albana to GitHub Pages   Ôòæ
-ÔòáÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòú
-Ôòæ  Features:                                                                    Ôòæ
-Ôòæ  - Auto-converts articles to Jekyll format                                    Ôòæ
-Ôòæ  - Schedules 3-5 posts per day                                               Ôòæ
-Ôòæ  - Pushes to GitHub Pages repository                                          Ôòæ
-Ôòæ  - Tracks published articles to avoid duplicates                              Ôòæ
-ÔòÜÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòØ
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║  CLISONIX BLOG AUTO-PUBLISHER                                                 ║
+║  Automatically publishes articles from Blerina & Dr. Albana to GitHub Pages   ║
+╠═══════════════════════════════════════════════════════════════════════════════╣
+║  Features:                                                                    ║
+║  - Auto-converts articles to Jekyll format                                    ║
+║  - Schedules 3-5 posts per day                                               ║
+║  - Pushes to GitHub Pages repository                                          ║
+║  - Tracks published articles to avoid duplicates                              ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
 
 Target: https://ledjanahmati.github.io/clisonix-blog/
 Port: 8041
@@ -17,24 +17,24 @@ Author: Ledjan Ahmati (CEO, ABA GmbH)
 """
 
 import asyncio
-import hashlib
 import json
 import logging
 import os
 import re
 import subprocess
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional, Any
+import hashlib
 
 import httpx
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+# ═══════════════════════════════════════════════════════════════════════════════
 # LOGGING
-# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+# ═══════════════════════════════════════════════════════════════════════════════
 
 logging.basicConfig(
     level=logging.INFO,
@@ -42,9 +42,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger("BlogPublisher")
 
-# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+# ═══════════════════════════════════════════════════════════════════════════════
 # CONFIGURATION
-# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+# ═══════════════════════════════════════════════════════════════════════════════
 
 PORT = int(os.getenv("PUBLISHER_PORT", "8041"))
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
@@ -59,9 +59,9 @@ DR_ALBANA_PILLARS_DIR = Path(os.getenv("DR_ALBANA_PILLARS_DIR", "/app/medical_pi
 PUBLISHED_TRACKER = Path("/app/published_tracker.json")
 POSTS_PER_DAY = int(os.getenv("POSTS_PER_DAY", "4"))
 
-# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+# ═══════════════════════════════════════════════════════════════════════════════
 # APP INITIALIZATION
-# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+# ═══════════════════════════════════════════════════════════════════════════════
 
 app = FastAPI(
     title="Clisonix Blog Auto-Publisher",
@@ -69,9 +69,9 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+# ═══════════════════════════════════════════════════════════════════════════════
 # MODELS
-# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+# ═══════════════════════════════════════════════════════════════════════════════
 
 class PublishRequest(BaseModel):
     """Manual publish request"""
@@ -93,9 +93,9 @@ class ScheduleStatus(BaseModel):
     next_publish_time: Optional[str]
     pending_articles: List[str]
 
-# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+# ═══════════════════════════════════════════════════════════════════════════════
 # TRACKING & STATE
-# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+# ═══════════════════════════════════════════════════════════════════════════════
 
 def load_published_tracker() -> Dict[str, Any]:
     """Load published articles tracker"""
@@ -121,9 +121,9 @@ def mark_as_published(article_id: str, github_url: str):
     tracker["last_publish_date"] = datetime.now(timezone.utc).isoformat()
     save_published_tracker(tracker)
 
-# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+# ═══════════════════════════════════════════════════════════════════════════════
 # JEKYLL CONVERTER
-# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+# ═══════════════════════════════════════════════════════════════════════════════
 
 def slugify(text: str) -> str:
     """Convert text to URL-friendly slug"""
@@ -213,9 +213,9 @@ excerpt: "{title[:150]}..."
     
     return jekyll_content, filename
 
-# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+# ═══════════════════════════════════════════════════════════════════════════════
 # GITHUB PUBLISHER
-# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+# ═══════════════════════════════════════════════════════════════════════════════
 
 async def publish_to_github(content: str, filename: str) -> Optional[str]:
     """
@@ -225,270 +225,57 @@ async def publish_to_github(content: str, filename: str) -> Optional[str]:
     if not GITHUB_TOKEN:
         logger.error("GITHUB_TOKEN not set!")
         return None
-
+    
     api_url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/_posts/{filename}"
-
+    
     headers = {
         "Authorization": f"Bearer {GITHUB_TOKEN}",
         "Accept": "application/vnd.github.v3+json",
         "X-GitHub-Api-Version": "2022-11-28"
     }
-
+    
     # Base64 encode content
     import base64
     content_b64 = base64.b64encode(content.encode('utf-8')).decode('utf-8')
-
+    
     payload = {
         "message": f"Auto-publish: {filename}",
         "content": content_b64,
         "branch": GITHUB_BRANCH
     }
-
+    
     try:
         async with httpx.AsyncClient() as client:
             # Check if file already exists
             check_response = await client.get(api_url, headers=headers)
-
+            
             if check_response.status_code == 200:
                 # File exists, get SHA for update
                 existing = check_response.json()
                 payload["sha"] = existing["sha"]
                 logger.info(f"Updating existing file: {filename}")
-
+            
             # Create or update file
             response = await client.put(api_url, headers=headers, json=payload)
-
+            
             if response.status_code in [200, 201]:
                 logger.info(f"Successfully published: {filename}")
                 # Construct blog URL
                 slug = filename.replace('.md', '').split('-', 3)[-1]
                 date_parts = filename.split('-')[:3]
                 blog_url = f"https://ledjanahmati.github.io/clisonix-blog/{'/'.join(date_parts)}/{slug}/"
-
-                # Auto-build blog: MD->HTML conversion and index regeneration
-                await convert_md_to_html(filename, content)
-                await regenerate_index_html()
-
                 return blog_url
             else:
                 logger.error(f"GitHub API error: {response.status_code} - {response.text}")
                 return None
-
+                
     except Exception as e:
         logger.error(f"Error publishing to GitHub: {e}")
         return None
 
-
-async def convert_md_to_html(filename: str, content: str) -> bool:
-    """Convert markdown post to HTML and save to static directory"""
-    try:
-        import re
-        from pathlib import Path
-
-        logger.info(f"[AUTO-BUILD] Starting MD->HTML conversion for: {filename}")
-        blog_dir = Path("/app/blog_repo") if Path("/app/blog_repo").exists() else None
-        if not blog_dir:
-            logger.error(f"[AUTO-BUILD] Blog directory not found at /app/blog_repo")
-            return False
-
-        static_dir = blog_dir / "static"
-        static_dir.mkdir(parents=True, exist_ok=True)
-
-        html_filename = filename.replace('.md', '.html')
-        html_path = static_dir / html_filename
-
-        if html_path.exists():
-            logger.info(f"[AUTO-BUILD] HTML already exists: {html_filename}")
-            return True
-
-        # Extract title from frontmatter
-        title_pattern = r'title:\s*["']?([^"'\n]+)["']?'
-        title = title_match.group(1) if title_match else filename.replace('-', ' ').replace('.md', '').title()
-
-        # Basic markdown to HTML conversion
-        body = content
-        if body.startswith('---'):
-            parts = body.split('---', 2)
-            if len(parts) >= 3:
-                body = parts[2].strip()
-
-        body = body.replace('**', '<strong>').replace('*', '<em>')
-        body = body.replace('\n\n', '</p><p>')
-        body = f"<p>{body}</p>"
-
-        html_content = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{title}</title>
-    <style>
-        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }}
-        article {{ background: #f5f5f5; padding: 20px; border-radius: 8px; }}
-        h1 {{ color: #333; margin-bottom: 10px; }}
-        p {{ color: #666; }}
-        em {{ font-style: italic; }}
-        strong {{ font-weight: bold; }}
-    </style>
-</head>
-<body>
-    <article>
-        <h1>{title}</h1>
-        {body}
-    </article>
-</body>
-</html>"""
-
-        html_path.write_text(html_content, encoding='utf-8')
-        logger.info(f"[AUTO-BUILD] ✓ Converted to HTML: {html_filename}")
-        return True
-
-    except Exception as e:
-        logger.error(f"[AUTO-BUILD] Error converting MD to HTML: {e}")
-        return False
-
-
-async def regenerate_index_html() -> bool:
-    """Regenerate index.html with all current articles"""
-    try:
-        import json
-        import re
-        from pathlib import Path
-
-        logger.info(f"[AUTO-BUILD] Starting index.html regeneration")
-        blog_dir = Path("/app/blog_repo") if Path("/app/blog_repo").exists() else None
-        if not blog_dir:
-            logger.error(f"[AUTO-BUILD] Blog directory not found for index regeneration")
-            return False
-
-        static_dir = blog_dir / "static"
-        index_path = blog_dir / "index.html"
-
-        if not static_dir.exists() or not index_path.exists():
-            logger.warning(f"[AUTO-BUILD] Blog directories not properly initialized")
-            return False
-
-        article_files = sorted(static_dir.glob("*.html"), reverse=True)
-        total_articles = len(article_files)
-
-        existing_html = index_path.read_text(encoding="utf-8")
-
-        new_html = existing_html
-        new_html = re.sub(r'>\d+\s+articles?<', f">{total_articles} articles<", new_html)
-        new_html = re.sub(r'"\d+\s+articles?"', f'"{total_articles} articles"', new_html)
-
-        index_path.write_text(new_html, encoding="utf-8")
-        logger.info(f"[AUTO-BUILD] ✓ Regenerated index.html with {total_articles} articles")
-        return True
-
-    except Exception as e:
-        logger.error(f"[AUTO-BUILD] Error regenerating index.html: {e}")
-        return False
-
-async def convert_md_to_html(filename: str, content: str) -> bool:
-    """Convert markdown post to HTML and save to static directory"""
-    try:
-        import re
-        from pathlib import Path
-        
-        blog_dir = Path("/app/blog_repo") if Path("/app/blog_repo").exists() else None
-        if not blog_dir:
-            return False
-        
-        static_dir = blog_dir / "static"
-        static_dir.mkdir(parents=True, exist_ok=True)
-        
-        html_filename = filename.replace('.md', '.html')
-        html_path = static_dir / html_filename
-        
-        if html_path.exists():
-            logger.info(f"HTML already exists: {html_filename}")
-            return True
-        
-        # Extract title from frontmatter
-        title_match = re.search(r'title:\s*["']?([^"\'\n]+)["']?', content)
-        title = title_match.group(1) if title_match else filename.replace('-', ' ').replace('.md', '').title()
-        
-        # Basic markdown to HTML conversion
-        body = content
-        if body.startswith('---'):
-            parts = body.split('---', 2)
-            if len(parts) >= 3:
-                body = parts[2].strip()
-        
-        body = body.replace('**', '<strong>').replace('*', '<em>')
-        body = body.replace('\n\n', '</p><p>')
-        body = f"<p>{body}</p>"
-        
-        html_content = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{title}</title>
-    <style>
-        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }}
-        article {{ background: #f5f5f5; padding: 20px; border-radius: 8px; }}
-        h1 {{ color: #333; margin-bottom: 10px; }}
-        p {{ color: #666; }}
-        em {{ font-style: italic; }}
-        strong {{ font-weight: bold; }}
-    </style>
-</head>
-<body>
-    <article>
-        <h1>{title}</h1>
-        {body}
-    </article>
-</body>
-</html>"""
-        
-        html_path.write_text(html_content, encoding='utf-8')
-        logger.info(f"✓ Converted to HTML: {html_filename}")
-        return True
-        
-    except Exception as e:
-        logger.error(f"Error converting MD to HTML: {e}")
-        return False
-
-async def regenerate_index_html() -> bool:
-    """Regenerate index.html with all current articles"""
-    try:
-        import json
-        import re
-        from pathlib import Path
-        
-        blog_dir = Path("/app/blog_repo") if Path("/app/blog_repo").exists() else None
-        if not blog_dir:
-            return False
-        
-        static_dir = blog_dir / "static"
-        index_path = blog_dir / "index.html"
-        
-        if not static_dir.exists() or not index_path.exists():
-            logger.warning("Blog directories not properly initialized")
-            return False
-        
-        article_files = sorted(static_dir.glob("*.html"), reverse=True)
-        total_articles = len(article_files)
-        
-        existing_html = index_path.read_text(encoding="utf-8")
-        
-        new_html = existing_html
-        new_html = re.sub(r'>\d+\s+articles?<', f">{total_articles} articles<", new_html)
-        new_html = re.sub(r'"\d+\s+articles?"', f'"{total_articles} articles"', new_html)
-        
-        index_path.write_text(new_html, encoding="utf-8")
-        logger.info(f"✓ Regenerated index.html with {total_articles} articles")
-        return True
-        
-    except Exception as e:
-        logger.error(f"Error regenerating index.html: {e}")
-        return False
-
-
+# ═══════════════════════════════════════════════════════════════════════════════
 # ARTICLE FETCHERS
-# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+# ═══════════════════════════════════════════════════════════════════════════════
 
 async def fetch_blerina_article(article_id: str) -> Optional[str]:
     """Fetch article content from Blerina service"""
@@ -527,69 +314,40 @@ async def fetch_dr_albana_article(article_id: str) -> Optional[str]:
     return None
 
 async def get_unpublished_articles() -> List[Dict[str, str]]:
-    """Get list of unpublished articles from both sources with filesystem fallback"""
+    """Get list of unpublished articles from both sources"""
     unpublished = []
     tracker = load_published_tracker()
     published_ids = set(tracker.get("published", []))
     
-    # Try to get Blerina articles from API, fall back to filesystem
-    blerina_articles = []
+    # Check Blerina articles
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get("http://clisonix-blerina:8035/api/v1/pillars")
             if response.status_code == 200:
                 pillars = response.json().get("pillars", [])
-                blerina_articles = pillars
+                for p in pillars:
+                    if p["id"] not in published_ids:
+                        unpublished.append({"id": p["id"], "source": "blerina", "title": p.get("title", "")})
     except Exception as e:
-        logger.warning(f"Could not fetch Blerina articles from API: {e}")
+        logger.warning(f"Could not fetch Blerina articles: {e}")
     
-    # Fallback: Scan filesystem for Blerina articles if API returned empty
-    if not blerina_articles and BLERINA_PILLARS_DIR.exists():
-        logger.info("API returned empty, scanning filesystem for Blerina articles...")
-        for json_file in BLERINA_PILLARS_DIR.glob("*.json"):
-            try:
-                data = json.loads(json_file.read_text())
-                blerina_articles.append(data)
-            except Exception as e:
-                logger.warning(f"Could not load {json_file}: {e}")
-    
-    # Process Blerina articles
-    for p in blerina_articles:
-        if p.get("id") not in published_ids:
-            unpublished.append({"id": p["id"], "source": "blerina", "title": p.get("title", "")})
-    
-    # Try to get Dr. Albana articles from API, fall back to filesystem
-    albana_articles = []
+    # Check Dr. Albana articles
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get("http://clisonix-dr-albana:8040/api/v1/medical/pillars")
             if response.status_code == 200:
                 pillars = response.json().get("pillars", [])
-                albana_articles = pillars
+                for p in pillars:
+                    if p["id"] not in published_ids:
+                        unpublished.append({"id": p["id"], "source": "dr_albana", "title": p.get("title", "")})
     except Exception as e:
-        logger.warning(f"Could not fetch Dr. Albana articles from API: {e}")
+        logger.warning(f"Could not fetch Dr. Albana articles: {e}")
     
-    # Fallback: Scan filesystem for Dr. Albana articles if API returned empty
-    if not albana_articles and DR_ALBANA_PILLARS_DIR.exists():
-        logger.info("API returned empty, scanning filesystem for Dr. Albana articles...")
-        for json_file in DR_ALBANA_PILLARS_DIR.glob("*.json"):
-            try:
-                data = json.loads(json_file.read_text())
-                albana_articles.append(data)
-            except Exception as e:
-                logger.warning(f"Could not load {json_file}: {e}")
-    
-    # Process Dr. Albana articles
-    for p in albana_articles:
-        if p.get("id") not in published_ids:
-            unpublished.append({"id": p["id"], "source": "dr_albana", "title": p.get("title", "")})
-    
-    logger.info(f"Found {len(unpublished)} unpublished articles (Blerina: {len([a for a in unpublished if a['source'] == 'blerina'])}, Dr. Albana: {len([a for a in unpublished if a['source'] == 'dr_albana'])})")
     return unpublished
 
-# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+# ═══════════════════════════════════════════════════════════════════════════════
 # ENDPOINTS
-# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+# ═══════════════════════════════════════════════════════════════════════════════
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -609,36 +367,36 @@ async def root():
     </head>
     <body>
         <div class="container">
-            <span class="badge">­ƒôØ AUTO-PUBLISH TO GITHUB PAGES</span>
-            <h1>­ƒô░ Clisonix Blog Auto-Publisher</h1>
+            <span class="badge">📝 AUTO-PUBLISH TO GITHUB PAGES</span>
+            <h1>📰 Clisonix Blog Auto-Publisher</h1>
             <h2>Target: <a href="https://ledjanahmati.github.io/clisonix-blog/">ledjanahmati.github.io/clisonix-blog</a></h2>
             
             <div class="endpoint">
-                <h3>­ƒôñ Publish Article</h3>
+                <h3>📤 Publish Article</h3>
                 <code>POST /api/v1/publish</code>
                 <p>Manually publish an article from Blerina or Dr. Albana</p>
             </div>
             
             <div class="endpoint">
-                <h3>­ƒöä Auto-Publish All Pending</h3>
+                <h3>🔄 Auto-Publish All Pending</h3>
                 <code>POST /api/v1/publish/batch</code>
                 <p>Publish all unpublished articles (up to POSTS_PER_DAY)</p>
             </div>
             
             <div class="endpoint">
-                <h3>­ƒôï Get Unpublished</h3>
+                <h3>📋 Get Unpublished</h3>
                 <code>GET /api/v1/pending</code>
                 <p>List articles waiting to be published</p>
             </div>
             
             <div class="endpoint">
-                <h3>­ƒôè Schedule Status</h3>
+                <h3>📊 Schedule Status</h3>
                 <code>GET /api/v1/status</code>
                 <p>Check publishing schedule and stats</p>
             </div>
             
             <div class="endpoint">
-                <h3>ÔÜò´©Å Health Check</h3>
+                <h3>⚕️ Health Check</h3>
                 <code>GET /health</code>
             </div>
         </div>
@@ -773,9 +531,9 @@ async def get_published_articles():
         "last_publish_date": tracker.get("last_publish_date")
     }
 
-# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+# ═══════════════════════════════════════════════════════════════════════════════
 # BACKGROUND SCHEDULER (for cron-like auto-publishing)
-# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+# ═══════════════════════════════════════════════════════════════════════════════
 
 async def auto_publish_scheduler():
     """Background task that auto-publishes articles on schedule"""
@@ -813,9 +571,9 @@ async def startup_event():
     asyncio.create_task(auto_publish_scheduler())
     logger.info("Blog Auto-Publisher started with scheduler")
 
-# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+# ═══════════════════════════════════════════════════════════════════════════════
 # MAIN
-# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+# ═══════════════════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
     import uvicorn

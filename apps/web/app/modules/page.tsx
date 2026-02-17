@@ -29,11 +29,31 @@ import {
   ExternalLink,
   MessageSquare,
   Globe,
-  Archive
+  Archive,
+  Target,
+  Users
 } from 'lucide-react';
 
 // Module definitions with Lucide icons
 const publicModules = [
+  {
+    id: 'zurich',
+    name: 'Zürich Engine',
+    description: 'Deterministic 9-stage reasoning without AI randomness',
+    icon: Target,
+    category: 'AI Reasoning',
+    href: '/zurich',
+    accent: 'slate'
+  },
+  {
+    id: 'debate',
+    name: 'Trinity Debate',
+    description: '5 AI personas debate any topic from different perspectives',
+    icon: Users,
+    category: 'AI Reasoning',
+    href: '/debate',
+    accent: 'slate'
+  },
   {
     id: 'curiosity-ocean',
     name: 'Curiosity Ocean',
@@ -158,7 +178,7 @@ const publicModules = [
     description: 'API Reference, SDKs, Quick Start Guide',
     icon: Code2,
     category: 'Developer',
-    href: '/modules/developer-docs',
+    href: '/developers',
     accent: 'slate'
   }
 ];
@@ -388,10 +408,10 @@ export default function DashboardPage() {
         <footer className="border-t border-slate-200 mt-8">
           <div className="px-8 py-6 flex items-center justify-between text-sm text-black">
             <div className="flex items-center gap-6">
-              <Link href="/modules/developer-docs" className="hover:text-black transition-colors">
+              <Link href="/developers" className="hover:text-black transition-colors">
                 Documentation
               </Link>
-              <a href="https://github.com/LedjanAhmati/Clisonix-cloud" className="hover:text-black transition-colors">
+              <a href="https://github.com/Web8kameleon-hub/clisonix.com" className="hover:text-black transition-colors">
                 GitHub
               </a>
               <a href="mailto:support@clisonix.com" className="hover:text-black transition-colors">

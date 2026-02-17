@@ -290,14 +290,41 @@ export default function WebReaderPage() {
       )}
 
       <main className="max-w-6xl mx-auto px-6 py-6">
-        {/* ═══ BROWSE TAB ═══ DISABLED FOR MAINTENANCE ═══ */}
+        {/* ═══ BROWSE TAB ═══ */}
         {activeTab === 'browse' && (
-          <div className="max-w-2xl">
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-8 text-center">
-              <div className="text-4xl mb-4">🔧</div>
-              <h2 className="text-xl font-bold text-amber-300 mb-2">Browse Temporarily Offline</h2>
-              <p className="text-amber-200/80">Browse tab is under maintenance. Try using the <strong>Search</strong> or <strong>Chat</strong> tabs instead!</p>
-            </div>
+          <div>
+            <form id="browse-form" onSubmit={handleBrowse} className="flex gap-3 mb-6">
+              <input
+                type="text"
+                value={browseUrl}
+                onChange={e => setBrowseUrl(e.target.value)}
+                placeholder="https://example.com — Enter any URL to read..."
+                className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+              />
+              <button
+                type="submit"
+                disabled={browseLoading}
+                className="px-6 py-3 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-xl text-white font-medium transition-all"
+              >
+                {browseLoading ? '⏳ Reading...' : '📖 Read'}
+              </button>
+            </form>
+
+            {browseContent && (
+              <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-white truncate max-w-xl">
+                    {browseContent.url}
+                  </h2>
+                  <span className="text-xs text-white/40">{browseContent.chars.toLocaleString()} chars</span>
+                </div>
+                <div className="prose prose-invert max-w-none">
+                  <pre className="whitespace-pre-wrap text-sm text-gray-300 leading-relaxed font-sans max-h-[70vh] overflow-y-auto">
+                    {browseContent.content}
+                  </pre>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

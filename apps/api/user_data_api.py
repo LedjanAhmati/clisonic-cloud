@@ -351,6 +351,301 @@ async def ingest_data(
     }
 
 # ============================================================================
+# CONNECTION TEST ENDPOINT - REAL CONNECTIVITY CHECK
+# ============================================================================
+
+@user_data_router.post("/data-sources/{source_id}/test")
+async def test_connection(
+    source_id: str,
+    user_id: str = Depends(get_user_id)
+):
+    """
+    Test real connection to a data source.
+    - API: Makes HTTP GET request
+    - MQTT: Tests broker connection
+    - Webhook: Returns webhook URL for posting data
+    """
+    import httpx
+    
+    sources = load_sources(user_id)
+    source = next((s for s in sources if s["id"] == source_id), None)
+    
+    if not source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    source_type = source.get("type", "api")
+    endpoint = source.get("endpoint", "")
+    
+    result = {
+        "source_id": source_id,
+        "source_name": source["name"],
+        "type": source_type,
+        "endpoint": endpoint
+    }
+    
+    try:
+        if source_type == "api":
+            # Test REST API endpoint
+            async with httpx.AsyncClient(timeout=30.0, verify=False) as client:
+                headers = {"Accept": "application/json"}
+                
+                # Add auth if configured
+                api_key = source.get("api_key")
+                if api_key:
+                    headers["Authorization"] = f"Bearer {api_key}"
+                
+                response = await client.get(endpoint, headers=headers)
+                
+                if response.status_code == 200:
+                    try:
+                        data = response.json()
+                        preview = str(data)[:300]
+                    except:
+                        preview = response.text[:300]
+                    
+                    result.update({
+                        "success": True,
+                        "status": "connected",
+                        "status_code": 200,
+                        "latency_ms": int(response.elapsed.total_seconds() * 1000),
+                        "data_preview": preview
+                    })
+                    
+                    # Update source status
+                    _update_source_status(user_id, source_id, "active")
+                else:
+                    result.update({
+                        "success": False,
+                        "status": "error",
+                        "status_code": response.status_code,
+                        "error": response.text[:200]
+                    })
+                    _update_source_status(user_id, source_id, "error")
+        
+        elif source_type == "mqtt":
+            # Parse mqtt://host:port/topic
+            import re
+            match = re.match(r'mqtt://([^:]+):?(\d+)?/?(.+)?', endpoint)
+            
+            if not match:
+                result.update({
+                    "success": False,
+                    "error": "Invalid MQTT URL. Use: mqtt://host:port/topic"
+                })
+            else:
+                host = match.group(1)
+                port = int(match.group(2) or 1883)
+                topic = match.group(3) or '#'
+                
+                try:
+                    import paho.mqtt.client as mqtt
+                    import asyncio
+                    
+                    connected = False
+                    
+                    def on_connect(client, userdata, flags, rc):
+                        nonlocal connected
+                        connected = (rc == 0)
+                    
+                    client = mqtt.Client()
+                    client.on_connect = on_connect
+                    
+                    # Auth if configured
+                    config = source.get("config", {})
+                    if config.get("username"):
+                        client.username_pw_set(config["username"], config.get("password", ""))
+                    
+                    client.connect(host, port, 5)
+                    client.loop_start()
+                    await asyncio.sleep(3)
+                    client.loop_stop()
+                    client.disconnect()
+                    
+                    if connected:
+                        result.update({
+                            "success": True,
+                            "status": "connected",
+                            "broker": f"{host}:{port}",
+                            "topic": topic
+                        })
+                        _update_source_status(user_id, source_id, "active")
+                    else:
+                        result.update({
+                            "success": False,
+                            "status": "error",
+                            "error": "MQTT connection failed"
+                        })
+                        _update_source_status(user_id, source_id, "error")
+                        
+                except ImportError:
+                    result.update({
+                        "success": False,
+                        "error": "MQTT support not installed (paho-mqtt)"
+                    })
+        
+        elif source_type == "webhook":
+            # Webhooks are incoming - provide URL
+            webhook_url = f"https://api.clisonix.com/api/user/webhook/{source_id}"
+            result.update({
+                "success": True,
+                "status": "ready",
+                "webhook_url": webhook_url,
+                "message": "POST JSON data to this URL",
+                "example_curl": f'curl -X POST {webhook_url} -H "Content-Type: application/json" -d \'{{"value": 25.5}}\''
+            })
+            _update_source_status(user_id, source_id, "active")
+        
+        elif source_type == "iot":
+            # IoT devices - return ingestion endpoint
+            ingest_url = f"https://api.clisonix.com/api/user/ingest"
+            result.update({
+                "success": True,
+                "status": "ready",
+                "ingest_url": ingest_url,
+                "message": "POST data with source_id to ingest",
+                "payload": {"source_id": source_id, "data": {"temp": 25.5}}
+            })
+            _update_source_status(user_id, source_id, "active")
+        
+        else:
+            # Generic URL test
+            async with httpx.AsyncClient(timeout=30.0, verify=False) as client:
+                response = await client.get(endpoint)
+                result.update({
+                    "success": response.status_code < 400,
+                    "status_code": response.status_code,
+                    "content_type": response.headers.get("content-type", "unknown")
+                })
+                _update_source_status(user_id, source_id, "active" if response.status_code < 400 else "error")
+    
+    except httpx.ConnectError as e:
+        result.update({"success": False, "error": f"Connection failed: {str(e)}"})
+        _update_source_status(user_id, source_id, "error")
+    except httpx.TimeoutException:
+        result.update({"success": False, "error": "Connection timeout (30s)"})
+        _update_source_status(user_id, source_id, "error")
+    except Exception as e:
+        result.update({"success": False, "error": str(e)})
+        _update_source_status(user_id, source_id, "error")
+    
+    return result
+
+
+def _update_source_status(user_id: str, source_id: str, status: str):
+    """Update source status after connection test"""
+    sources = load_sources(user_id)
+    for i, source in enumerate(sources):
+        if source["id"] == source_id:
+            source["status"] = status
+            source["updated_at"] = datetime.utcnow().isoformat()
+            sources[i] = source
+            break
+    save_sources(user_id, sources)
+
+
+@user_data_router.post("/data-sources/{source_id}/fetch")
+async def fetch_data(
+    source_id: str,
+    user_id: str = Depends(get_user_id)
+):
+    """
+    Fetch latest data from a source (for API/RSS/CSV types).
+    Automatically ingests and stores the data.
+    """
+    import httpx
+    
+    sources = load_sources(user_id)
+    source = next((s for s in sources if s["id"] == source_id), None)
+    
+    if not source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    if source.get("status") != "active":
+        raise HTTPException(status_code=400, detail=f"Source not active. Status: {source.get('status')}")
+    
+    source_type = source.get("type", "api")
+    endpoint = source.get("endpoint", "")
+    
+    try:
+        async with httpx.AsyncClient(timeout=60.0, verify=False) as client:
+            headers = {"Accept": "application/json"}
+            
+            api_key = source.get("api_key")
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+            
+            response = await client.get(endpoint, headers=headers)
+            
+            if response.status_code == 200:
+                try:
+                    data = response.json()
+                except:
+                    data = {"raw": response.text[:1000]}
+                
+                # Ingest the data
+                ingest = DataIngest(source_id=source_id, data=data)
+                await ingest_data(ingest, user_id)
+                
+                return {
+                    "success": True,
+                    "fetched_at": datetime.utcnow().isoformat(),
+                    "data": data,
+                    "ingested": True
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"HTTP {response.status_code}: {response.text[:200]}"
+                }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@user_data_router.get("/data-sources/{source_id}/history")
+async def get_data_history(
+    source_id: str,
+    limit: int = 100,
+    user_id: str = Depends(get_user_id)
+):
+    """Get historical data points for a source"""
+    sources = load_sources(user_id)
+    source = next((s for s in sources if s["id"] == source_id), None)
+    
+    if not source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    # Read data file
+    data_path = f"{STORAGE_PATH}/data/{user_id}_{source_id}.jsonl"
+    
+    if not os.path.exists(data_path):
+        return {
+            "source_id": source_id,
+            "source_name": source["name"],
+            "data_points": [],
+            "count": 0
+        }
+    
+    # Read last N lines
+    points = []
+    with open(data_path, "r") as f:
+        lines = f.readlines()
+        for line in lines[-limit:]:
+            try:
+                points.append(json.loads(line.strip()))
+            except:
+                pass
+    
+    return {
+        "source_id": source_id,
+        "source_name": source["name"],
+        "data_points": points,
+        "count": len(points),
+        "total_stored": len(lines)
+    }
+
+
+# ============================================================================
 # SUMMARY ENDPOINT
 # ============================================================================
 
