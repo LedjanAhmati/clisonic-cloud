@@ -18,6 +18,8 @@ from datetime import datetime, timedelta
 from typing import AsyncGenerator, Optional
 
 import httpx
+from elasticsearch import Elasticsearch
+import os
 from fastapi import FastAPI, HTTPException, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -1159,6 +1161,24 @@ async def get_client() -> httpx.AsyncClient:
     return _client
 
 # FastAPI
+
+# Initialize Elasticsearch client for large documents
+async def init_elasticsearch():
+    global es_client
+    try:
+        es_host = os.getenv('ELASTICSEARCH_HOST', 'elasticsearch')
+        es_port = int(os.getenv('ELASTICSEARCH_PORT', '9200'))
+        es_client = Elasticsearch([{'host': es_host, 'port': es_port, 'scheme': 'http'}])
+        # Test connection
+        es_client.info()
+        print(f"✓ Elasticsearch connected: {es_host}:{es_port}")
+    except Exception as e:
+        print(f"⚠ Elasticsearch not available: {e}")
+        es_client = None
+
+es_client = None
+
+
 app = FastAPI(title="Ocean Nanogrid", version="2.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
@@ -2043,7 +2063,9 @@ async def analyze_document(req: DocumentRequest, request: Request):
     if not req.content or not req.content.strip():
         raise HTTPException(400, "Document content is empty.")
 
-    max_content_chars = 50000  # 50K chars max
+    # Elastic mode: unlimited for large academic documents
+    elastic_mode = os.getenv("ELASTIC_MODE", "false").lower() == "true"
+    max_content_chars = float("inf") if elastic_mode else 50000
     if len(req.content) > max_content_chars:
         raise HTTPException(
             413,

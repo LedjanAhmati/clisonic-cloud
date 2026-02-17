@@ -1195,7 +1195,7 @@ lab_generated: true
         <h3>🚀 Ready to explore Clisonix?</h3>
         <p>Visit <a href="https://clisonix.com">clisonix.com</a> |
            <a href="https://github.com/Web8kameleon-hub/clisonix.com">GitHub</a> |
-           <a href="mailto:info@clisonix.com">Contact Us</a></p>
+           <a href="mailto:clisonix@pm.me">Contact Us</a></p>
     </div>
     <footer class="footer">
         <p>© {datetime.now().year}
@@ -1268,7 +1268,7 @@ class GitHubPagesPublisher:
 
             # Configure user
             subprocess.run(
-                ["git", "config", "user.email", "ai@clisonix.com"],
+                ["git", "config", "user.email", "clisonix@pm.me"],
                 cwd=self.repo_path, check=True
             )
             subprocess.run(
