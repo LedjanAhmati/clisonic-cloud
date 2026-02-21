@@ -522,22 +522,24 @@ async def ollama_warmup_loop():
     """
     Keep Ollama model HOT - ping every 25 seconds.
     This ensures first token appears in 1-2 seconds instead of 6-8 seconds.
+    keep_alive: -1 keeps model in memory FOREVER (never unload)
     """
-    logger.info("🔥 Starting Ollama warmup loop (every 25s)")
+    logger.info("🔥 Starting Ollama warmup loop (every 25s, keep_alive=-1)")
     while True:
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                # Simple ping to keep model loaded in memory
+                # Simple ping to keep model loaded in memory FOREVER
                 await client.post(
                     f"{OLLAMA_HOST}/api/generate",
                     json={
                         "model": MODEL,
                         "prompt": "Hi",
                         "stream": False,
+                        "keep_alive": -1,  # CRITICAL: Keep model in memory FOREVER
                         "options": {"num_predict": 1}  # Generate only 1 token
                     }
                 )
-            logger.debug("🔥 Ollama warmup ping OK")
+            logger.debug("🔥 Ollama warmup ping OK (model kept alive forever)")
         except Exception as e:
             logger.warning(f"⚠️ Warmup ping failed: {e}")
         await asyncio.sleep(25)  # Every 25 seconds
@@ -617,83 +619,54 @@ async def chat(req: ChatRequest):
 @app.post("/api/v1/chat/stream")
 async def chat_stream(req: ChatRequest):
     """
-    STREAMING chat endpoint - Returns text in real-time!
-    First token appears within 2-3 seconds instead of waiting 60+ seconds.
+    FAST STREAMING chat endpoint - optimized for 2-3s TTFT on CPU!
+    Uses FAST_SYSTEM_PROMPT (40 tokens) + small context (2048)
     """
     prompt = req.message or req.query
     if not prompt:
         raise HTTPException(status_code=400, detail="message or query required")
     
-    engines_used = []
+    # Quick language detection inline (no async overhead)
+    lang_hint = ""
+    if any(word in prompt.lower() for word in ["çfarë", "si", "pse", "ku", "kur", "përse", "një", "është"]):
+        lang_hint = " Përgjigju në shqip."
+    elif any(word in prompt.lower() for word in ["was", "wie", "warum", "wo", "wann"]):
+        lang_hint = " Antworte auf Deutsch."
     
-    # 1. Detect Language (fast)
-    lang_code, lang_name, confidence = await detect_language(prompt)
-    engines_used.append(f"TranslationNode({lang_code})")
-    
-    lang_instruction = ""
-    if lang_code != "en":
-        lang_instruction = f"\n\nIMPORTANT: The user is writing in {lang_name}. You MUST respond in {lang_name}."
-    
-    # 2. Knowledge Seeds (optional)
-    seed_context = ""
-    if req.use_knowledge_seeds:
-        seed = find_knowledge_seed(prompt)
-        if seed:
-            seed_context = f"\n\nRELEVANT KNOWLEDGE:\n{seed}"
-            engines_used.append("KnowledgeSeeds")
-    
-    # 3. Strict mode
-    strict_instruction = ""
-    if req.strict_mode:
-        strict_instruction = """
-
-## STRICT MODE ACTIVATED - MANDATORY RULES
-1. STAY ON TOPIC - Answer ONLY what was asked
-2. NO QUESTIONS - Do not ask the user questions
-3. IMMEDIATE START - Begin writing immediately
-4. CONTINUOUS OUTPUT - Write without stopping"""
-        engines_used.append("StrictMode")
-    
-    # 4. Albanian Dictionary - Direct response for definition queries
+    # Albanian Dictionary - Direct response (fastest path)
     if ALBANIAN_DICT_AVAILABLE:
         albanian_response = get_albanian_response(prompt)
         if albanian_response:
-            engines_used.append("AlbanianDictionary")
-            logger.info(f"🇦🇱 Albanian Dict direct response for: {prompt[:50]}...")
-            # Return as plain text streaming-compatible response
+            logger.info(f"🇦🇱 Albanian Dict direct: {prompt[:40]}...")
             async def albanian_stream():
                 yield albanian_response
             return StreamingResponse(albanian_stream(), media_type="text/plain")
     
-    # Build prompt
-    enhanced_prompt = SYSTEM_PROMPT + lang_instruction + seed_context + strict_instruction
-    
+    # Build FAST prompt (minimal processing!)
     messages = [
-        {"role": "system", "content": enhanced_prompt},
+        {"role": "system", "content": FAST_SYSTEM_PROMPT + lang_hint},
         {"role": "user", "content": prompt}
     ]
     
-    options = {
+    # FAST options - optimized for quick TTFT!
+    fast_options = {
         "temperature": 0.7,
-        "num_ctx": 8192,
-        "repeat_penalty": 1.2,
+        "num_ctx": 2048,       # Reduced from 8192!
+        "num_predict": 1024,   # Limit response length
+        "top_k": 40,           # Faster sampling
         "top_p": 0.9,
-        "num_predict": -1,
-        "num_keep": 0,
-        "mirostat": 0,
-        "repeat_last_n": 64,
-        "stop": []
+        "repeat_penalty": 1.1,
     }
     
-    logger.info(f"🌊 Streaming request [{lang_code}]: {prompt[:50]}...")
+    logger.info(f"🚀 FAST streaming: {prompt[:40]}...")
     
     return StreamingResponse(
         stream_ollama_response(
             model=req.model or MODEL,
             messages=messages,
-            options=options,
-            engines_used=engines_used,
-            lang_code=lang_code
+            options=fast_options,
+            engines_used=["FastStream"],
+            lang_code="auto"
         ),
         media_type="text/plain"
     )
