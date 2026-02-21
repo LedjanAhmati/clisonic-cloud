@@ -519,49 +519,15 @@ VIOLATION OF THESE RULES IS NOT ALLOWED."""
 # API ENDPOINTS
 # ═══════════════════════════════════════════════════════════════════
 
-# Global: Keep Ollama model warm
-_warmup_task = None
-
-async def ollama_warmup_loop():
-    """
-    Keep Ollama model HOT - ping every 25 seconds.
-    This ensures first token appears in 1-2 seconds instead of 6-8 seconds.
-    keep_alive: -1 keeps model in memory FOREVER (never unload)
-    """
-    logger.info("🔥 Starting Ollama warmup loop (every 25s, keep_alive=-1)")
-    while True:
-        try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                # Simple ping to keep model loaded in memory FOREVER
-                await client.post(
-                    f"{OLLAMA_HOST}/api/generate",
-                    json={
-                        "model": MODEL,
-                        "prompt": "Hi",
-                        "stream": False,
-                        "keep_alive": -1,  # CRITICAL: Keep model in memory FOREVER
-                        "options": {"num_predict": 1}  # Generate only 1 token
-                    }
-                )
-            logger.debug("🔥 Ollama warmup ping OK (model kept alive forever)")
-        except Exception as e:
-            logger.warning(f"⚠️ Warmup ping failed: {e}")
-        await asyncio.sleep(25)  # Every 25 seconds
-
 @app.on_event("startup")
 async def startup_event():
     """Initialize engines on startup"""
-    global _warmup_task
     logger.info("🚀 Ocean Core Full starting...")
     initialize_engines()
     logger.info("✅ All engines initialized")
     logger.info(f"📡 Ollama: {OLLAMA_HOST}")
     logger.info(f"🤖 Model: {MODEL}")
     logger.info(f"🌍 Translation Node: {TRANSLATION_NODE}")
-    
-    # Start warmup loop in background
-    _warmup_task = asyncio.create_task(ollama_warmup_loop())
-    logger.info("🔥 Ollama warmup task started - first token in 1-2s guaranteed!")
 
 @app.on_event("shutdown")
 async def shutdown_event():
