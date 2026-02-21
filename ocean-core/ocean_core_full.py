@@ -188,6 +188,10 @@ You are the most advanced AI assistant on Clisonix Cloud - a GLOBAL enterprise p
 
 SYSTEM_PROMPT = generate_full_system_prompt()
 
+# FAST system prompt for streaming - minimal tokens for quick TTFT
+FAST_SYSTEM_PROMPT = """You are Ocean, a helpful AI assistant. Be concise, accurate, and friendly. 
+Respond in the user's language. Start immediately, no preamble."""
+
 # ═══════════════════════════════════════════════════════════════════
 # FASTAPI APP
 # ═══════════════════════════════════════════════════════════════════
