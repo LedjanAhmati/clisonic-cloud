@@ -27,6 +27,8 @@
     "@swc/helpers": "^0.5.18",
     "@types/react": "^18.3.27",
     "@types/react-dom": "^18.3.7",
+    "@typescript-eslint/eslint-plugin": "^8.56.0",
+    "@typescript-eslint/parser": "^8.56.0",
     "@vanilla-extract/css": "^1.18.0",
     "@vanilla-extract/next-plugin": "^2.4.17",
     "@vanilla-extract/recipes": "^0.5.7",
@@ -58,10 +60,14 @@
     "@types/mime": "^3.0.4",
     "@types/node": "^24.9.2",
     "autoprefixer": "^10.4.20",
-    "eslint": "^9.0.0",
-    "eslint-config-next": "15.5.4",
+    "eslint": "^10.0.1",
+    "eslint-config-next": "^16.1.6",
     "postcss": "^8.5.6",
     "react-is": "^19.2.4",
     "tailwindcss": "^4.1.18"
+  },
+  "overrides": {
+    "minimatch": "^10.2.1",
+    "glob": "^11.0.0"
   }
 }
