@@ -24,7 +24,7 @@ import time
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -120,6 +120,17 @@ except ImportError as e:
     SERVICES = {}
     logger.warning(f"⚠️ Knowledge Layer not available: {e}")
 
+# 7. Enterprise Guard - Security & Behavior Layer
+try:
+    from enterprise import get_enterprise_guard, EnterpriseGuard
+    ENTERPRISE_GUARD_AVAILABLE = True
+    enterprise_guard = get_enterprise_guard()
+    logger.info("✅ Enterprise Guard loaded - 10 security modules")
+except ImportError as e:
+    ENTERPRISE_GUARD_AVAILABLE = False
+    enterprise_guard = None
+    logger.warning(f"⚠️ Enterprise Guard not available: {e}")
+
 # ═══════════════════════════════════════════════════════════════════
 # SYSTEM PROMPT - FULL VERSION with all capabilities
 # ═══════════════════════════════════════════════════════════════════
@@ -140,9 +151,11 @@ def generate_full_system_prompt() -> str:
     if SERVICE_REGISTRY_AVAILABLE:
         capabilities.append("🔧 ServiceRegistry: 31 platform modules")
     if ALBANIAN_DICT_AVAILABLE:
-        capabilities.append(f"� Multilingual Dictionary: {len(ALL_ALBANIAN_WORDS)}+ words (72 languages)")
+        capabilities.append(f"🌐 Multilingual Dictionary: {len(ALL_ALBANIAN_WORDS)}+ words (72 languages)")
     if KNOWLEDGE_SEEDS_AVAILABLE:
         capabilities.append("🌱 Knowledge Seeds: Core platform knowledge")
+    if ENTERPRISE_GUARD_AVAILABLE:
+        capabilities.append("🛡️ Enterprise Guard: 10 security & behavior modules")
     
     capabilities_str = "\n".join(capabilities) if capabilities else "Basic mode"
     
@@ -392,6 +405,22 @@ async def process_query_full(req: ChatRequest) -> ChatResponse:
     if not prompt:
         raise HTTPException(status_code=400, detail="message or query required")
     
+    # 0. Enterprise Guard - Security & Input Validation
+    if ENTERPRISE_GUARD_AVAILABLE and enterprise_guard:
+        input_check = enterprise_guard.check_input(prompt)
+        if not input_check["proceed"]:
+            # Blocked by security
+            warning_msg = input_check["warnings"][0] if input_check["warnings"] else "Kërkesa nuk lejohet."
+            return ChatResponse(
+                response=warning_msg,
+                model="enterprise_guard",
+                processing_time=round(time.time() - start_time, 2),
+                tokens_used=0,
+                engines=["EnterpriseGuard:Blocked"],
+                metadata={"security": "blocked", "reason": input_check.get("warnings", [])}
+            )
+        engines_used.append("EnterpriseGuard")
+    
     # 1. Detect Language
     lang_code, lang_name, confidence = await detect_language(prompt)
     engines_used.append(f"TranslationNode({lang_code})")
@@ -575,9 +604,32 @@ async def status():
             SERVICE_REGISTRY_AVAILABLE,
             ALBANIAN_DICT_AVAILABLE,
             KNOWLEDGE_SEEDS_AVAILABLE,
-            KNOWLEDGE_LAYER_AVAILABLE
+            KNOWLEDGE_LAYER_AVAILABLE,
+            ENTERPRISE_GUARD_AVAILABLE
         ]),
-        "total_layer_combinations": TOTAL_COMBINATIONS if MEGA_LAYERS_AVAILABLE else 0
+        "total_layer_combinations": TOTAL_COMBINATIONS if MEGA_LAYERS_AVAILABLE else 0,
+        "enterprise_guard": enterprise_guard.get_status() if ENTERPRISE_GUARD_AVAILABLE and enterprise_guard else None
+    }
+
+@app.get("/api/v1/enterprise/status")
+async def enterprise_status():
+    """Enterprise Guard status and diagnostics"""
+    if not ENTERPRISE_GUARD_AVAILABLE or not enterprise_guard:
+        return {"status": "not_available", "message": "Enterprise Guard not loaded"}
+    
+    return {
+        "status": "active",
+        **enterprise_guard.get_status()
+    }
+
+@app.get("/api/v1/enterprise/contract")
+async def enterprise_contract():
+    """Get the behavior contract text"""
+    if not ENTERPRISE_GUARD_AVAILABLE or not enterprise_guard:
+        return {"error": "Enterprise Guard not loaded"}
+    
+    return {
+        "contract": enterprise_guard.contract.get_contract_text()
     }
 
 @app.post("/api/v1/chat", response_model=ChatResponse)
@@ -1942,6 +1994,297 @@ async def list_personas():
         ],
         "total": len(TRINITY_PERSONAS)
     }
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 🔊 TEXT-TO-SPEECH ENGINE - Natural Voice Output
+# ═══════════════════════════════════════════════════════════════════
+
+# TTS Voice Configuration - Microsoft Edge Neural Voices (Free, High Quality)
+TTS_VOICES = {
+    "en": "en-US-AriaNeural",        # English - Female, natural
+    "en-male": "en-US-GuyNeural",    # English - Male
+    "sq": "en-GB-SoniaNeural",       # Albanian fallback - British English sounds natural
+    "de": "de-DE-KatjaNeural",       # German
+    "fr": "fr-FR-DeniseNeural",      # French
+    "es": "es-ES-ElviraNeural",      # Spanish
+    "it": "it-IT-ElsaNeural",        # Italian
+    "pt": "pt-BR-FranciscaNeural",   # Portuguese
+    "ru": "ru-RU-SvetlanaNeural",    # Russian
+    "zh": "zh-CN-XiaoxiaoNeural",    # Chinese
+    "ja": "ja-JP-NanamiNeural",      # Japanese
+    "ko": "ko-KR-SunHiNeural",       # Korean
+    "ar": "ar-EG-SalmaNeural",       # Arabic
+    "tr": "tr-TR-EmelNeural",        # Turkish
+    "hi": "hi-IN-SwaraNeural",       # Hindi
+    "nl": "nl-NL-ColetteNeural",     # Dutch
+    "pl": "pl-PL-ZofiaNeural",       # Polish
+    "uk": "uk-UA-PolinaNeural",      # Ukrainian
+    "el": "el-GR-AthinaNeural",      # Greek
+    "ro": "ro-RO-AlinaNeural",       # Romanian
+    "sr": "sr-RS-SophieNeural",      # Serbian
+    "hr": "hr-HR-GabrijelaNeural",   # Croatian
+    "bg": "bg-BG-KalinaNeural",      # Bulgarian
+    "mk": "mk-MK-MarijaNeural",      # Macedonian
+}
+
+class TTSRequest(BaseModel):
+    """Text-to-Speech request model"""
+    text: str
+    language: str = "en"
+    voice: Optional[str] = None  # Override default voice
+    rate: str = "+0%"  # Speech rate: -50% to +100%
+    pitch: str = "+0Hz"  # Pitch adjustment
+
+
+class VoiceConversationRequest(BaseModel):
+    """Full voice conversation request: Audio In → STT → LLM → TTS → Audio Out"""
+    audio_base64: str
+    language: str = "en"
+    voice: Optional[str] = None
+    curiosity_level: str = "curious"
+    user_id: Optional[str] = None
+
+
+@app.post("/api/v1/tts")
+async def text_to_speech(req: TTSRequest):
+    """
+    🔊 TEXT-TO-SPEECH - Convert text to natural speech audio
+    
+    Returns MP3 audio file with natural neural voice.
+    Supports 24+ languages with high-quality Microsoft Edge voices.
+    
+    Example:
+        POST /api/v1/tts
+        {"text": "Hello, how are you?", "language": "en"}
+        
+        Returns: audio/mpeg stream
+    """
+    start_time = time.time()
+    
+    try:
+        import edge_tts
+        import tempfile
+        import os as os_mod
+        
+        # Input validation
+        if not req.text or not req.text.strip():
+            raise HTTPException(400, "Text cannot be empty")
+        
+        if len(req.text) > 5000:
+            raise HTTPException(400, "Text too long. Maximum 5000 characters.")
+        
+        # Get voice for language
+        voice = req.voice or TTS_VOICES.get(req.language, TTS_VOICES.get("en"))
+        
+        # Create TTS communicate object
+        communicate = edge_tts.Communicate(
+            text=req.text.strip(),
+            voice=voice,
+            rate=req.rate,
+            pitch=req.pitch
+        )
+        
+        # Generate audio to temp file
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
+            tmp_path = tmp.name
+        
+        await communicate.save(tmp_path)
+        
+        # Read audio data
+        with open(tmp_path, "rb") as f:
+            audio_data = f.read()
+        
+        # Cleanup
+        os_mod.unlink(tmp_path)
+        
+        processing_time = time.time() - start_time
+        logger.info(f"🔊 TTS: {len(req.text)} chars → {len(audio_data)} bytes in {processing_time:.2f}s | voice={voice}")
+        
+        # Return audio as streaming response
+        return StreamingResponse(
+            iter([audio_data]),
+            media_type="audio/mpeg",
+            headers={
+                "Content-Disposition": f"inline; filename=speech.mp3",
+                "X-Processing-Time": f"{processing_time:.3f}s",
+                "X-Voice-Used": voice,
+                "X-Text-Length": str(len(req.text))
+            }
+        )
+        
+    except ImportError:
+        raise HTTPException(500, "TTS engine not available. Install: pip install edge-tts")
+    except Exception as e:
+        logger.error(f"TTS Error: {e}")
+        raise HTTPException(500, f"TTS generation failed: {str(e)}")
+
+
+@app.get("/api/v1/tts/voices")
+async def list_tts_voices():
+    """List all available TTS voices by language."""
+    return {
+        "voices": TTS_VOICES,
+        "total": len(TTS_VOICES),
+        "engine": "Microsoft Edge Neural TTS (Free)",
+        "quality": "High - Neural Network Generated",
+        "note": "Albanian (sq) uses British English voice as fallback"
+    }
+
+
+@app.post("/api/v1/voice/conversation")
+async def voice_conversation(req: VoiceConversationRequest, request: Request):
+    """
+    🎙️ FULL VOICE CONVERSATION PIPELINE
+    
+    Audio In → STT (Whisper) → LLM (Ollama) → TTS (Edge) → Audio Out
+    
+    Complete voice-to-voice conversation in one request.
+    Send audio, get audio response back.
+    
+    Flow:
+    1. Decode audio from base64
+    2. Transcribe with Whisper (Speech-to-Text)
+    3. Generate response with Ollama LLM
+    4. Convert response to speech (Text-to-Speech)
+    5. Return audio response
+    """
+    start_time = time.time()
+    user_id = req.user_id or request.headers.get("X-User-ID") or "anonymous"
+    
+    try:
+        import edge_tts
+        import tempfile
+        import base64 as b64mod
+        import os as os_mod
+        
+        # ═══════════════════════════════════════════════════════════════
+        # STEP 1: Decode Audio
+        # ═══════════════════════════════════════════════════════════════
+        audio_bytes = b64mod.b64decode(req.audio_base64)
+        if len(audio_bytes) < 100:
+            raise HTTPException(400, "Audio data too small")
+        
+        # Save to temp file
+        with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tmp:
+            tmp.write(audio_bytes)
+            audio_path = tmp.name
+        
+        # ═══════════════════════════════════════════════════════════════
+        # STEP 2: Speech-to-Text (Whisper)
+        # ═══════════════════════════════════════════════════════════════
+        try:
+            from faster_whisper import WhisperModel
+            
+            global _whisper_model_conv
+            if '_whisper_model_conv' not in globals() or _whisper_model_conv is None:
+                _whisper_model_conv = WhisperModel("base", device="cpu", compute_type="int8")
+            
+            segments, info = _whisper_model_conv.transcribe(
+                audio_path,
+                language=req.language if req.language not in ['auto', 'sq'] else None,
+                beam_size=5
+            )
+            
+            transcript = " ".join([seg.text for seg in segments]).strip()
+            detected_language = info.language or req.language
+            
+        except ImportError:
+            # Fallback: Use Ollama's whisper if available
+            async with httpx.AsyncClient(timeout=30) as client:
+                with open(audio_path, "rb") as f:
+                    audio_b64 = b64mod.b64encode(f.read()).decode()
+                resp = await client.post(
+                    f"{OLLAMA_HOST}/api/generate",
+                    json={"model": "whisper", "prompt": audio_b64}
+                )
+                transcript = resp.json().get("response", "")
+                detected_language = req.language
+        
+        finally:
+            os_mod.unlink(audio_path)
+        
+        if not transcript:
+            raise HTTPException(400, "Could not transcribe audio. Please speak clearly.")
+        
+        stt_time = time.time() - start_time
+        logger.info(f"🎤 STT: '{transcript[:50]}...' in {stt_time:.2f}s")
+        
+        # ═══════════════════════════════════════════════════════════════
+        # STEP 3: Generate LLM Response (Ollama)
+        # ═══════════════════════════════════════════════════════════════
+        llm_start = time.time()
+        
+        system_prompt = """You are a friendly voice assistant. Keep responses concise and natural for speech.
+Respond in the same language as the user's message. Be helpful and conversational."""
+        
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                f"{OLLAMA_HOST}/api/generate",
+                json={
+                    "model": MODEL,
+                    "prompt": transcript,
+                    "system": system_prompt,
+                    "stream": False,
+                    "options": {"temperature": 0.7, "num_predict": 200}
+                }
+            )
+            llm_response = resp.json().get("response", "I couldn't process that. Please try again.")
+        
+        llm_time = time.time() - llm_start
+        logger.info(f"🧠 LLM: '{llm_response[:50]}...' in {llm_time:.2f}s")
+        
+        # ═══════════════════════════════════════════════════════════════
+        # STEP 4: Text-to-Speech (Edge TTS)
+        # ═══════════════════════════════════════════════════════════════
+        tts_start = time.time()
+        
+        voice = req.voice or TTS_VOICES.get(detected_language, TTS_VOICES.get("en"))
+        communicate = edge_tts.Communicate(text=llm_response, voice=voice)
+        
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
+            tts_path = tmp.name
+        
+        await communicate.save(tts_path)
+        
+        with open(tts_path, "rb") as f:
+            audio_response = f.read()
+        
+        os_mod.unlink(tts_path)
+        
+        tts_time = time.time() - tts_start
+        total_time = time.time() - start_time
+        
+        logger.info(f"🔊 Voice Conversation: STT={stt_time:.1f}s LLM={llm_time:.1f}s TTS={tts_time:.1f}s Total={total_time:.1f}s")
+        
+        # ═══════════════════════════════════════════════════════════════
+        # STEP 5: Return Audio Response
+        # ═══════════════════════════════════════════════════════════════
+        return StreamingResponse(
+            iter([audio_response]),
+            media_type="audio/mpeg",
+            headers={
+                "Content-Disposition": "inline; filename=response.mp3",
+                "X-Transcript": transcript[:100],
+                "X-Response-Text": llm_response[:100],
+                "X-Processing-Time": f"{total_time:.3f}s",
+                "X-STT-Time": f"{stt_time:.3f}s",
+                "X-LLM-Time": f"{llm_time:.3f}s",
+                "X-TTS-Time": f"{tts_time:.3f}s",
+                "X-Voice-Used": voice,
+                "X-Detected-Language": detected_language
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Voice Conversation Error: {e}")
+        raise HTTPException(500, f"Voice conversation failed: {str(e)}")
+
+
+# Initialize whisper model placeholder
+_whisper_model_conv = None
 
 
 # ═══════════════════════════════════════════════════════════════════

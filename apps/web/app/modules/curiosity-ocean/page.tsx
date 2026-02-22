@@ -427,8 +427,10 @@ export default function CuriosityOceanChat() {
   }, [inputValue]);
 
   // ============================================================================
-  // 🎤 MICROPHONE
+  // 🎤 MICROPHONE - Voice Conversation Pipeline
   // ============================================================================
+  const [voiceMode, setVoiceMode] = useState(true); // true = full voice conversation
+  
   const toggleRecording = async () => {
     setShowAttachMenu(false);
     if (isRecording) {
@@ -446,17 +448,80 @@ export default function CuriosityOceanChat() {
           const reader = new FileReader();
           reader.onloadend = async () => {
             const base64 = (reader.result as string).split(',')[1];
-            setMessages(prev => [...prev, { id: `user-${Date.now()}`, type: 'user', content: '🎤 Audio sent', timestamp: new Date() }]);
+            const userMsgId = `user-${Date.now()}`;
+            setMessages(prev => [...prev, { id: userMsgId, type: 'user', content: '🎤 Voice message...', timestamp: new Date() }]);
+            
             try {
-              const res = await fetch('/api/ocean/audio', {
-                method: 'POST',
-                headers: getAuthHeaders(),
-                body: JSON.stringify({ audio_base64: base64, language, clerk_user_id: userId })
-              });
-              const data = await res.json();
-              setMessages(prev => [...prev, { id: `ai-${Date.now()}`, type: 'ai', content: data.transcript || data.text || 'Audio processed', timestamp: new Date() }]);
+              if (voiceMode) {
+                // 🔊 FULL VOICE CONVERSATION: Audio → STT → LLM → TTS → Audio
+                const res = await fetch('/api/ocean/voice', {
+                  method: 'POST',
+                  headers: getAuthHeaders(),
+                  body: JSON.stringify({ 
+                    audio_base64: base64, 
+                    language, 
+                    curiosity_level: curiosityLevel,
+                    clerk_user_id: userId 
+                  })
+                });
+                
+                if (res.ok) {
+                  // Get metadata from headers
+                  const transcript = res.headers.get('X-Transcript') || '';
+                  const responseText = res.headers.get('X-Response-Text') || '';
+                  
+                  // Update user message with transcript
+                  setMessages(prev => prev.map(m => 
+                    m.id === userMsgId ? { ...m, content: `🎤 "${transcript}"` } : m
+                  ));
+                  
+                  // Add AI response
+                  const aiMsgId = `ai-${Date.now()}`;
+                  setMessages(prev => [...prev, { 
+                    id: aiMsgId, 
+                    type: 'ai', 
+                    content: responseText || 'Voice response received', 
+                    timestamp: new Date() 
+                  }]);
+                  
+                  // 🔊 Play audio response automatically
+                  const audioBlob = await res.blob();
+                  const audioUrl = URL.createObjectURL(audioBlob);
+                  const audio = new Audio(audioUrl);
+                  audioRef.current = audio;
+                  setSpeakingMessageId(aiMsgId);
+                  
+                  audio.onended = () => {
+                    setSpeakingMessageId(null);
+                    URL.revokeObjectURL(audioUrl);
+                    audioRef.current = null;
+                  };
+                  
+                  await audio.play();
+                } else {
+                  throw new Error('Voice conversation failed');
+                }
+              } else {
+                // 📝 TEXT ONLY: Audio → STT → Text response
+                const res = await fetch('/api/ocean/audio', {
+                  method: 'POST',
+                  headers: getAuthHeaders(),
+                  body: JSON.stringify({ audio_base64: base64, language, clerk_user_id: userId })
+                });
+                const data = await res.json();
+                
+                // Update user message with transcript
+                setMessages(prev => prev.map(m => 
+                  m.id === userMsgId ? { ...m, content: `🎤 "${data.transcript || 'Audio'}"` } : m
+                ));
+                
+                // Send transcript to chat
+                if (data.transcript) {
+                  await sendMessage(data.transcript);
+                }
+              }
             } catch {
-              setMessages(prev => [...prev, { id: `error-${Date.now()}`, type: 'ai', content: '❌ Error processing audio', timestamp: new Date() }]);
+              setMessages(prev => [...prev, { id: `error-${Date.now()}`, type: 'ai', content: '❌ Error processing voice message', timestamp: new Date() }]);
             }
           };
           reader.readAsDataURL(blob);
@@ -674,27 +739,79 @@ export default function CuriosityOceanChat() {
   };
 
   // ============================================================================
-  // 🔊 TEXT-TO-SPEECH (Natural Voice)
+  // 🔊 TEXT-TO-SPEECH (Server-Side Neural Voice)
   // ============================================================================
-  const speakMessage = (messageId: string, text: string) => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) return;
-
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  const speakMessage = async (messageId: string, text: string) => {
     // If already speaking this message, stop it
     if (speakingMessageId === messageId) {
-      window.speechSynthesis.cancel();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      window.speechSynthesis?.cancel();
       setSpeakingMessageId(null);
       return;
     }
 
     // Stop any ongoing speech
-    window.speechSynthesis.cancel();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    window.speechSynthesis?.cancel();
+    
+    setSpeakingMessageId(messageId);
+
+    try {
+      // Try server-side TTS first (higher quality neural voices)
+      const response = await fetch('/api/ocean/tts', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ text, language })
+      });
+
+      if (response.ok) {
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        audioRef.current = audio;
+        
+        audio.onended = () => {
+          setSpeakingMessageId(null);
+          URL.revokeObjectURL(audioUrl);
+          audioRef.current = null;
+        };
+        audio.onerror = () => {
+          setSpeakingMessageId(null);
+          audioRef.current = null;
+          // Fallback to browser TTS
+          fallbackBrowserTTS(text);
+        };
+        
+        await audio.play();
+        return;
+      }
+    } catch {
+      // Server TTS failed, fallback to browser
+    }
+
+    // Fallback: Browser Speech Synthesis
+    fallbackBrowserTTS(text);
+  };
+
+  const fallbackBrowserTTS = (text: string) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
+      setSpeakingMessageId(null);
+      return;
+    }
 
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = language === 'sq' ? 'en-US' : language; // Albanian fallback to English
-    utterance.rate = 0.95; // Slightly slower for clarity
+    utterance.lang = language === 'sq' ? 'en-US' : language;
+    utterance.rate = 0.95;
     utterance.pitch = 1.0;
 
-    // Try to get a natural voice
     const voices = window.speechSynthesis.getVoices();
     const preferredVoice = voices.find(v => 
       v.name.includes('Google') || v.name.includes('Microsoft') || v.name.includes('Natural')
@@ -702,7 +819,6 @@ export default function CuriosityOceanChat() {
     
     if (preferredVoice) utterance.voice = preferredVoice;
 
-    utterance.onstart = () => setSpeakingMessageId(messageId);
     utterance.onend = () => setSpeakingMessageId(null);
     utterance.onerror = () => setSpeakingMessageId(null);
 
