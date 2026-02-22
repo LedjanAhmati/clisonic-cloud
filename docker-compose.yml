@@ -198,6 +198,8 @@ services:
       context: ./ocean-core
       dockerfile: Dockerfile
     container_name: clisonix-ocean-core
+    env_file:
+      - .env
     environment:
       PYTHONUNBUFFERED: "1"
       OCEAN_PORT: "8030"
@@ -249,6 +251,8 @@ services:
       context: ./apps/api
       dockerfile: Dockerfile
     container_name: clisonix-api
+    env_file:
+      - .env
     environment:
       PYTHONUNBUFFERED: "1"
       API_PORT: "8000"
@@ -276,6 +280,8 @@ services:
       context: ./apps/web
       dockerfile: Dockerfile
     container_name: clisonix-web
+    env_file:
+      - .env
     environment:
       NODE_ENV: "production"
       # Use Docker internal network for server-side API calls
