@@ -1136,7 +1136,8 @@ async def browse_webpage(url: str, max_chars: int = 8000):
             "Accept-Language": "en-US,en;q=0.9"
         }
         
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+        # verify=False for Docker SSL issues, follow_redirects for 30x
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True, verify=False) as client:
             response = await client.get(url, headers=headers)
         
         if response.status_code != 200:
@@ -1200,7 +1201,8 @@ async def web_search(q: str, num: int = 5):
             "Accept-Language": "en-US,en;q=0.9"
         }
         
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+        # verify=False for Docker SSL issues
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True, verify=False) as client:
             response = await client.get(search_url, headers=headers)
         
         if response.status_code != 200:
