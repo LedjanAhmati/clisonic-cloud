@@ -119,6 +119,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check for required secrets
+        run: |
+          if [ -z "${{ secrets.HETZNER_KUBECONFIG }}" ]; then
+            echo "⚠️ HETZNER_KUBECONFIG secret not set"
+            echo "::warning::HETZNER_KUBECONFIG secret is required for deployment"
+            exit 1
+          fi
+          echo "✅ Required secrets are present"
+
       - name: Set up kubectl
         uses: azure/setup-kubectl@v4
         with:
@@ -167,6 +176,15 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Check for required secrets
+        run: |
+          if [ -z "${{ secrets.HETZNER_KUBECONFIG }}" ]; then
+            echo "⚠️ HETZNER_KUBECONFIG secret not set"
+            echo "::warning::HETZNER_KUBECONFIG secret is required for Helm deployment"
+            exit 1
+          fi
+          echo "✅ Required secrets are present"
 
       - name: Set up Helm
         uses: azure/setup-helm@v4

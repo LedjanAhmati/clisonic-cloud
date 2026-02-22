@@ -1,6 +1,7 @@
 {
   "name": "@clisonix/frontend",
   "version": "1.0.0",
+  "type": "module",
   "description": "Clisonix Industrial Frontend - Next.js Dashboard",
   "private": true,
   "scripts": {

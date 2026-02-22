@@ -325,8 +325,38 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Validate deployment prerequisites
+        run: |
+          echo "🔍 Checking deployment prerequisites..."
+          HAS_SSH=false
+          HAS_KUBECONFIG=false
+          
+          if [ -n "${{ secrets.HETZNER_SSH_KEY }}" ]; then
+            echo "✅ HETZNER_SSH_KEY is set"
+            HAS_SSH=true
+          else
+            echo "⚠️ HETZNER_SSH_KEY is not set"
+          fi
+          
+          if [ -n "${{ secrets.HETZNER_KUBECONFIG }}" ]; then
+            echo "✅ HETZNER_KUBECONFIG is set"
+            HAS_KUBECONFIG=true
+          else
+            echo "⚠️ HETZNER_KUBECONFIG is not set"
+          fi
+          
+          if [ "$HAS_SSH" = false ] && [ "$HAS_KUBECONFIG" = false ]; then
+            echo "::error::Neither HETZNER_SSH_KEY nor HETZNER_KUBECONFIG secrets are set"
+            echo "::error::At least one deployment method must be configured"
+            exit 1
+          fi
+          
+          echo "HAS_SSH=$HAS_SSH" >> $GITHUB_ENV
+          echo "HAS_KUBECONFIG=$HAS_KUBECONFIG" >> $GITHUB_ENV
+
       # Try SSH deployment first (for Docker Compose servers)
       - name: Setup SSH Key
+        if: env.HAS_SSH == 'true'
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_rsa
@@ -334,6 +364,7 @@ jobs:
           ssh-keyscan -H ${{ env.HETZNER_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Deploy via SSH (Docker Compose)
+        if: env.HAS_SSH == 'true'
         id: ssh_deploy
         continue-on-error: true
         run: |
@@ -355,26 +386,26 @@ jobs:
 
       # Kubernetes deployment (only if SSH failed and kubeconfig exists)
       - name: Set up Helm
-        if: steps.ssh_deploy.outcome != 'success'
+        if: steps.ssh_deploy.outcome != 'success' && env.HAS_KUBECONFIG == 'true'
         uses: azure/setup-helm@v4
         with:
           version: 'v3.14.0'
 
       - name: Set up kubectl
-        if: steps.ssh_deploy.outcome != 'success'
+        if: steps.ssh_deploy.outcome != 'success' && env.HAS_KUBECONFIG == 'true'
         uses: azure/setup-kubectl@v4
         with:
           version: 'v1.29.0'
 
       - name: Configure kubeconfig
-        if: steps.ssh_deploy.outcome != 'success'
+        if: steps.ssh_deploy.outcome != 'success' && env.HAS_KUBECONFIG == 'true'
         run: |
           mkdir -p $HOME/.kube
           echo "${{ secrets.HETZNER_KUBECONFIG }}" | base64 -d > $HOME/.kube/config
           chmod 600 $HOME/.kube/config
 
       - name: Verify cluster connection
-        if: steps.ssh_deploy.outcome != 'success'
+        if: steps.ssh_deploy.outcome != 'success' && env.HAS_KUBECONFIG == 'true'
         run: |
           echo "🔗 Connecting to Hetzner cluster..."
           kubectl cluster-info
@@ -382,14 +413,14 @@ jobs:
           echo "✅ Cluster connection verified"
 
       - name: Add Helm repositories
-        if: steps.ssh_deploy.outcome != 'success'
+        if: steps.ssh_deploy.outcome != 'success' && env.HAS_KUBECONFIG == 'true'
         run: |
           helm repo add bitnami https://charts.bitnami.com/bitnami
           helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
           helm repo update
 
       - name: Create namespace
-        if: steps.ssh_deploy.outcome != 'success'
+        if: steps.ssh_deploy.outcome != 'success' && env.HAS_KUBECONFIG == 'true'
         run: |
           NAMESPACE="${{ env.NAMESPACE_PREFIX }}-${{ inputs.environment || 'production' }}"
           kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
@@ -398,6 +429,7 @@ jobs:
       # DATABASES
       # -----------------------------------------------------------------------
       - name: Deploy PostgreSQL
+        if: steps.ssh_deploy.outcome != 'success' && env.HAS_KUBECONFIG == 'true'
         run: |
           NAMESPACE="${{ env.NAMESPACE_PREFIX }}-${{ inputs.environment || 'production' }}"
           helm upgrade --install postgres bitnami/postgresql \
@@ -408,6 +440,7 @@ jobs:
             --wait --timeout 5m
 
       - name: Deploy Redis
+        if: steps.ssh_deploy.outcome != 'success' && env.HAS_KUBECONFIG == 'true'
         run: |
           NAMESPACE="${{ env.NAMESPACE_PREFIX }}-${{ inputs.environment || 'production' }}"
           helm upgrade --install redis bitnami/redis \
@@ -417,6 +450,7 @@ jobs:
             --wait --timeout 5m
 
       - name: Deploy Neo4j
+        if: steps.ssh_deploy.outcome != 'success' && env.HAS_KUBECONFIG == 'true'
         run: |
           NAMESPACE="${{ env.NAMESPACE_PREFIX }}-${{ inputs.environment || 'production' }}"
           kubectl apply -n $NAMESPACE -f - <<EOF

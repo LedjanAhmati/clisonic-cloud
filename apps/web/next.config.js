@@ -306,9 +306,6 @@ const nextConfig = {
   httpAgentOptions: {
     keepAlive: true,
   },
-  httpsAgentOptions: {
-    keepAlive: true,
-  },
   allowedDevOrigins: ["localhost:3000", "127.0.0.1:3000", "clisonix.com"],
 };
 
