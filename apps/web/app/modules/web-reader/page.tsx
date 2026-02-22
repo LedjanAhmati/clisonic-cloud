@@ -13,7 +13,9 @@ interface SearchResult {
 interface BrowseResult {
   url: string
   content: string
-  chars: number
+  chars?: number
+  char_count?: number
+  title?: string
 }
 
 interface ChatMessage {
@@ -314,9 +316,9 @@ export default function WebReaderPage() {
               <div className="bg-white/5 border border-white/10 rounded-xl p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-semibold text-white truncate max-w-xl">
-                    {browseContent.url}
+                    {browseContent.title || browseContent.url}
                   </h2>
-                  <span className="text-xs text-white/40">{browseContent.chars.toLocaleString()} chars</span>
+                  <span className="text-xs text-white/40">{(browseContent.chars || browseContent.char_count || 0).toLocaleString()} chars</span>
                 </div>
                 <div className="prose prose-invert max-w-none">
                   <pre className="whitespace-pre-wrap text-sm text-gray-300 leading-relaxed font-sans max-h-[70vh] overflow-y-auto">
