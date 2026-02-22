@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Send, Sparkles, RefreshCw, ChevronRight, Loader2, Mic, Camera, FileText, X, Square, Plus, Settings2, ArrowLeft } from 'lucide-react';
+import { Send, Sparkles, RefreshCw, ChevronRight, Loader2, Mic, Camera, FileText, X, Square, Plus, Settings2, ArrowLeft, Volume2, VolumeX } from 'lucide-react';
 
 // Clerk — safe runtime access (no hooks, avoids ClerkProvider requirement)
 function getClerkUser(): { userId: string | null; firstName: string | null; username: string | null } {
@@ -370,6 +370,7 @@ export default function CuriosityOceanChat() {
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -673,6 +674,49 @@ export default function CuriosityOceanChat() {
   };
 
   // ============================================================================
+  // 🔊 TEXT-TO-SPEECH (Natural Voice)
+  // ============================================================================
+  const speakMessage = (messageId: string, text: string) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+
+    // If already speaking this message, stop it
+    if (speakingMessageId === messageId) {
+      window.speechSynthesis.cancel();
+      setSpeakingMessageId(null);
+      return;
+    }
+
+    // Stop any ongoing speech
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = language === 'sq' ? 'en-US' : language; // Albanian fallback to English
+    utterance.rate = 0.95; // Slightly slower for clarity
+    utterance.pitch = 1.0;
+
+    // Try to get a natural voice
+    const voices = window.speechSynthesis.getVoices();
+    const preferredVoice = voices.find(v => 
+      v.name.includes('Google') || v.name.includes('Microsoft') || v.name.includes('Natural')
+    ) || voices.find(v => v.lang.startsWith(language)) || voices[0];
+    
+    if (preferredVoice) utterance.voice = preferredVoice;
+
+    utterance.onstart = () => setSpeakingMessageId(messageId);
+    utterance.onend = () => setSpeakingMessageId(null);
+    utterance.onerror = () => setSpeakingMessageId(null);
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Load voices (they load async)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.getVoices();
+    }
+  }, []);
+
+  // ============================================================================
   // RENDER
   // ============================================================================
   return (
@@ -803,6 +847,25 @@ export default function CuriosityOceanChat() {
                   }`}
                 >
                   <div className="whitespace-pre-wrap text-[14.5px] leading-relaxed">{message.content}</div>
+
+                  {/* 🔊 Speak Button (AI messages only) */}
+                  {message.type === 'ai' && message.content && !message.isStreaming && (
+                    <button
+                      onClick={() => speakMessage(message.id, message.content)}
+                      className={`mt-2 flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-all ${
+                        speakingMessageId === message.id
+                          ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                          : 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 border border-transparent'
+                      }`}
+                      title={speakingMessageId === message.id ? 'Stop speaking' : 'Listen to response'}
+                    >
+                      {speakingMessageId === message.id ? (
+                        <><VolumeX className="w-3.5 h-3.5" /><span>Stop</span></>
+                      ) : (
+                        <><Volume2 className="w-3.5 h-3.5" /><span>Listen</span></>
+                      )}
+                    </button>
+                  )}
 
                   {/* Explore further */}
                   {message.rabbitHoles && message.rabbitHoles.length > 0 && (
