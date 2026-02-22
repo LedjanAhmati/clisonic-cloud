@@ -493,6 +493,7 @@ jobs:
           EOF
 
       - name: Deploy VictoriaMetrics
+        if: steps.ssh_deploy.outcome != 'success' && env.HAS_KUBECONFIG == 'true'
         run: |
           NAMESPACE="${{ env.NAMESPACE_PREFIX }}-${{ inputs.environment || 'production' }}"
           kubectl apply -n $NAMESPACE -f - <<EOF
@@ -534,6 +535,7 @@ jobs:
       # ASI TRINITY
       # -----------------------------------------------------------------------
       - name: Deploy ASI Trinity (Alba, Albi, Jona, ASI)
+        if: steps.ssh_deploy.outcome != 'success' && env.HAS_KUBECONFIG == 'true'
         run: |
           NAMESPACE="${{ env.NAMESPACE_PREFIX }}-${{ inputs.environment || 'production' }}"
           TAG="${{ needs.build-images.outputs.image_tag }}"
@@ -593,6 +595,7 @@ jobs:
       # BINARY ALGEBRA (LIAM, ALDA, Alphabet)
       # -----------------------------------------------------------------------
       - name: Deploy Binary Algebra (Liam, Alda, Alphabet)
+        if: steps.ssh_deploy.outcome != 'success' && env.HAS_KUBECONFIG == 'true'
         run: |
           NAMESPACE="${{ env.NAMESPACE_PREFIX }}-${{ inputs.environment || 'production' }}"
           TAG="${{ needs.build-images.outputs.image_tag }}"
@@ -704,6 +707,7 @@ jobs:
       # OCEAN CORE + INTELLIGENCE
       # -----------------------------------------------------------------------
       - name: Deploy Ocean Core + Intelligence
+        if: steps.ssh_deploy.outcome != 'success' && env.HAS_KUBECONFIG == 'true'
         run: |
           NAMESPACE="${{ env.NAMESPACE_PREFIX }}-${{ inputs.environment || 'production' }}"
           TAG="${{ needs.build-images.outputs.image_tag }}"
@@ -794,7 +798,7 @@ jobs:
       # AGIEM + DATASOURCES (8 Regions)
       # -----------------------------------------------------------------------
       - name: Deploy AGIEM + Datasources
-        if: inputs.deploy_scope == 'full' || inputs.deploy_scope == 'datasources' || github.event_name == 'push'
+        if: steps.ssh_deploy.outcome != 'success' && env.HAS_KUBECONFIG == 'true' && (inputs.deploy_scope == 'full' || inputs.deploy_scope == 'datasources' || github.event_name == 'push')
         run: |
           NAMESPACE="${{ env.NAMESPACE_PREFIX }}-${{ inputs.environment || 'production' }}"
           TAG="${{ needs.build-images.outputs.image_tag }}"
@@ -878,7 +882,7 @@ jobs:
       # 23 LABORATORIES (City-Named)
       # -----------------------------------------------------------------------
       - name: Deploy 23 Laboratories
-        if: inputs.deploy_scope == 'full' || inputs.deploy_scope == 'labs' || github.event_name == 'push'
+        if: steps.ssh_deploy.outcome != 'success' && env.HAS_KUBECONFIG == 'true' && (inputs.deploy_scope == 'full' || inputs.deploy_scope == 'labs' || github.event_name == 'push')
         run: |
           NAMESPACE="${{ env.NAMESPACE_PREFIX }}-${{ inputs.environment || 'production' }}"
           TAG="${{ needs.build-images.outputs.image_tag }}"
@@ -935,6 +939,7 @@ jobs:
       # SERVICES (API, Web, Aviation, Behavioral, Economy, etc.)
       # -----------------------------------------------------------------------
       - name: Deploy Core Services
+        if: steps.ssh_deploy.outcome != 'success' && env.HAS_KUBECONFIG == 'true'
         run: |
           NAMESPACE="${{ env.NAMESPACE_PREFIX }}-${{ inputs.environment || 'production' }}"
           TAG="${{ needs.build-images.outputs.image_tag }}"
@@ -1098,6 +1103,7 @@ jobs:
       # INGRESS
       # -----------------------------------------------------------------------
       - name: Deploy Ingress
+        if: steps.ssh_deploy.outcome != 'success' && env.HAS_KUBECONFIG == 'true'
         run: |
           NAMESPACE="${{ env.NAMESPACE_PREFIX }}-${{ inputs.environment || 'production' }}"
           DOMAIN="${{ inputs.environment == 'staging' && 'staging.clisonix.cloud' || 'clisonix.cloud' }}"
@@ -1148,6 +1154,7 @@ jobs:
       # VERIFICATION
       # -----------------------------------------------------------------------
       - name: Verify All Deployments
+        if: steps.ssh_deploy.outcome != 'success' && env.HAS_KUBECONFIG == 'true'
         run: |
           NAMESPACE="${{ env.NAMESPACE_PREFIX }}-${{ inputs.environment || 'production' }}"
           echo "📊 Deployment Status:"
