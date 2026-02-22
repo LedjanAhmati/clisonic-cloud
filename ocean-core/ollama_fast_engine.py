@@ -38,7 +38,8 @@ logger = logging.getLogger("ollama_fast")
 # ═══════════════════════════════════════════════════════════════════════════════
 
 IS_DOCKER = os.path.exists("/.dockerenv") or os.environ.get("DOCKER_ENV") == "1"
-OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "clisonix-06-ollama" if IS_DOCKER else "localhost")
+# Container name in docker-compose.yml is "clisonix-ollama"
+OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "clisonix-ollama" if IS_DOCKER else "localhost")
 if OLLAMA_HOST.startswith("http://"):
     OLLAMA_HOST = OLLAMA_HOST.replace("http://", "").split(":")[0]
 
