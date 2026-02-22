@@ -1,0 +1,211 @@
+# =============================================================================
+# CLISONIX CLOUD - DOCKER COMPOSE DEPLOYMENT (SSH)
+# =============================================================================
+# Deploys services to Hetzner via SSH + Docker Compose
+# Server: 46.224.203.89
+#
+# Nuk përdoret Kubernetes - vetëm Docker Compose në server
+# =============================================================================
+
+name: "🐳 Deploy Docker Compose"
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'docker-compose*.yml'
+      - 'Dockerfile*'
+      - 'apps/**'
+      - 'ocean-core/**'
+      - 'services/**'
+      - '.github/workflows/deploy-docker.yml'
+  workflow_dispatch:
+    inputs:
+      services:
+        description: 'Services to deploy (comma-separated or "all")'
+        required: true
+        default: 'all'
+        type: string
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'up'
+        type: choice
+        options:
+          - up        # Start/restart services
+          - restart   # Restart only
+          - logs      # Show logs
+          - status    # Show status
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  HETZNER_IP: 46.224.203.89
+  DEPLOY_PATH: /root/Clisonix-cloud
+
+jobs:
+  # =========================================================================
+  # DEPLOY VIA SSH
+  # =========================================================================
+  deploy:
+    name: "🚀 Deploy to Hetzner"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate SSH Key
+        run: |
+          if [ -z "${{ secrets.HETZNER_SSH_KEY }}" ]; then
+            echo "::error::HETZNER_SSH_KEY secret is not set"
+            echo "Please add your SSH private key to repository secrets"
+            exit 1
+          fi
+          echo "✅ SSH key is configured"
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.HETZNER_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Test SSH Connection
+        run: |
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@${{ env.HETZNER_IP }} "echo '✅ SSH connection successful'"
+
+      - name: Pull Latest Code
+        run: |
+          ssh root@${{ env.HETZNER_IP }} << 'ENDSSH'
+          cd ${{ env.DEPLOY_PATH }}
+          echo "📥 Pulling latest code from GitHub..."
+          git fetch origin main
+          git reset --hard origin/main
+          echo "✅ Code updated to $(git rev-parse --short HEAD)"
+          ENDSSH
+
+      - name: Deploy Services
+        run: |
+          SERVICES="${{ inputs.services || 'all' }}"
+          ACTION="${{ inputs.action || 'up' }}"
+          
+          ssh root@${{ env.HETZNER_IP }} << ENDSSH
+          cd ${{ env.DEPLOY_PATH }}
+          
+          echo "🐳 Docker Compose Action: $ACTION"
+          echo "📦 Services: $SERVICES"
+          echo ""
+          
+          # Determine which compose command to use
+          if command -v docker-compose &> /dev/null; then
+            COMPOSE="docker-compose"
+          else
+            COMPOSE="docker compose"
+          fi
+          
+          case "$ACTION" in
+            up)
+              if [ "$SERVICES" = "all" ]; then
+                echo "🚀 Starting ALL services..."
+                \$COMPOSE up -d --remove-orphans
+              else
+                echo "🚀 Starting: $SERVICES"
+                \$COMPOSE up -d --remove-orphans $SERVICES
+              fi
+              ;;
+            restart)
+              if [ "$SERVICES" = "all" ]; then
+                echo "🔄 Restarting ALL services..."
+                \$COMPOSE restart
+              else
+                echo "🔄 Restarting: $SERVICES"
+                \$COMPOSE restart $SERVICES
+              fi
+              ;;
+            logs)
+              echo "📋 Showing logs..."
+              \$COMPOSE logs --tail=50 $SERVICES
+              ;;
+            status)
+              echo "📊 Service Status:"
+              \$COMPOSE ps
+              ;;
+          esac
+          
+          echo ""
+          echo "✅ Action completed"
+          ENDSSH
+
+      - name: Show Running Services
+        run: |
+          ssh root@${{ env.HETZNER_IP }} << 'ENDSSH'
+          cd ${{ env.DEPLOY_PATH }}
+          echo ""
+          echo "📊 RUNNING CONTAINERS:"
+          echo "======================"
+          docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | head -30
+          echo ""
+          echo "📈 RESOURCE USAGE:"
+          echo "=================="
+          docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}' | head -20
+          ENDSSH
+
+      - name: Health Check
+        run: |
+          ssh root@${{ env.HETZNER_IP }} << 'ENDSSH'
+          echo ""
+          echo "🏥 HEALTH CHECKS:"
+          echo "================="
+          
+          # Check core services
+          for port in 8000 3000 8030 5555 9094; do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:$port/health 2>/dev/null | grep -q "200\|404"; then
+              echo "✅ Port $port - responding"
+            else
+              echo "⚠️ Port $port - not responding (may be expected)"
+            fi
+          done
+          
+          # Check Ollama
+          if curl -s http://localhost:11434/api/version | grep -q "version"; then
+            echo "✅ Ollama - running"
+          else
+            echo "⚠️ Ollama - not responding"
+          fi
+          
+          echo ""
+          echo "🎉 Deployment complete!"
+          ENDSSH
+
+  # =========================================================================
+  # SUMMARY
+  # =========================================================================
+  summary:
+    name: "📋 Summary"
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: always()
+    
+    steps:
+      - name: Generate Summary
+        run: |
+          echo "## 🐳 Docker Compose Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Detail | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Server | ${{ env.HETZNER_IP }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Services | ${{ inputs.services || 'all' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Action | ${{ inputs.action || 'up' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | ${{ needs.deploy.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🌐 Access Points" >> $GITHUB_STEP_SUMMARY
+          echo "- **Web:** http://${{ env.HETZNER_IP }}:3000" >> $GITHUB_STEP_SUMMARY
+          echo "- **API:** http://${{ env.HETZNER_IP }}:8000" >> $GITHUB_STEP_SUMMARY
+          echo "- **Ocean:** http://${{ env.HETZNER_IP }}:8030" >> $GITHUB_STEP_SUMMARY
+          echo "- **Alba:** http://${{ env.HETZNER_IP }}:5555" >> $GITHUB_STEP_SUMMARY
+          echo "- **Ollama:** http://${{ env.HETZNER_IP }}:11434" >> $GITHUB_STEP_SUMMARY
