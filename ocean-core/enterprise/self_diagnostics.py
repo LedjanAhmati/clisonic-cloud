@@ -6,8 +6,8 @@ Tracks errors, learns patterns, self-improves.
 Ultra-light: ~70 lines | Error tracking | Pattern learning
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from dataclasses import dataclass
+from typing import Dict, List
 from datetime import datetime
 import json
 

@@ -12,16 +12,16 @@ Usage:
 from typing import Dict, Optional, Any
 from dataclasses import dataclass
 
-from .identity_kernel import get_identity, IdentityKernel
-from .boundary_engine import get_boundaries, BoundaryEngine
-from .consistency_matrix import get_consistency, ConsistencyMatrix
-from .cognitive_verifier import get_verifier, CognitiveVerifier
-from .ambiguity_resolver import get_resolver, AmbiguityResolver
-from .integrity_firewall import get_firewall, IntegrityFirewall
-from .tone_governor import get_tone, ToneGovernor
-from .stress_engine import get_stress_handler, StressEngine
-from .self_diagnostics import get_diagnostics, SelfDiagnostics
-from .behavior_contract import get_contract, BehaviorContract
+from .identity_kernel import get_identity
+from .boundary_engine import get_boundaries
+from .consistency_matrix import get_consistency
+from .cognitive_verifier import get_verifier
+from .ambiguity_resolver import get_resolver
+from .integrity_firewall import get_firewall
+from .tone_governor import get_tone
+from .stress_engine import get_stress_handler
+from .self_diagnostics import get_diagnostics
+from .behavior_contract import get_contract
 
 
 @dataclass

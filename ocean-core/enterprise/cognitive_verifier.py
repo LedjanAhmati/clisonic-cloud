@@ -54,7 +54,7 @@ class CognitiveVerifier:
                     passed_checks += 1
                 else:
                     issues.append(f"Failed: {name}")
-            except:
+            except Exception:
                 issues.append(f"Error in: {name}")
         
         # Check for red flags

@@ -7,7 +7,7 @@ Ultra-light: ~70 lines | Rule engine | Contract enforcement
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Callable
+from typing import Dict, List
 from enum import Enum
 
 

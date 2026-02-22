@@ -54,8 +54,6 @@ TRANSLATION_NODE = os.getenv("TRANSLATION_NODE", "http://localhost:8036")
 try:
     from mega_layer_engine import (
         TOTAL_COMBINATIONS,
-        LayerActivation,
-        MegaLayerEngine,
         get_mega_layer_engine,
     )
     MEGA_LAYERS_AVAILABLE = True
@@ -66,7 +64,7 @@ except ImportError as e:
 
 # 2. Real Answer Engine - Deep Knowledge
 try:
-    from real_answer_engine import RealAnswerEngine, get_answer_engine
+    from real_answer_engine import get_answer_engine
     REAL_ANSWER_AVAILABLE = True
     logger.info("✅ RealAnswerEngine loaded")
 except ImportError as e:
@@ -75,7 +73,7 @@ except ImportError as e:
 
 # 3. Service Registry - 31 modules
 try:
-    from service_registry import ServiceRegistry, get_service_registry
+    from service_registry import get_service_registry
     SERVICE_REGISTRY_AVAILABLE = True
     logger.info("✅ ServiceRegistry loaded")
 except ImportError as e:
@@ -86,7 +84,6 @@ except ImportError as e:
 try:
     from albanian_dictionary import (
         ALL_ALBANIAN_WORDS,
-        detect_albanian,
         get_albanian_response,
     )
     ALBANIAN_DICT_AVAILABLE = True
@@ -97,7 +94,7 @@ except ImportError as e:
 
 # 5. Knowledge Seeds
 try:
-    from knowledge_seeds.core_knowledge import find_matching_seed, seed_stats
+    from knowledge_seeds.core_knowledge import find_matching_seed
     KNOWLEDGE_SEEDS_AVAILABLE = True
     logger.info("✅ Knowledge Seeds loaded")
 except ImportError as e:
@@ -107,10 +104,7 @@ except ImportError as e:
 # 6. Knowledge Layer - Platform Intelligence
 try:
     from knowledge_layer import (
-        AGENT_IDENTITY,
-        HOW_TO_USE,
         SERVICES,
-        USER_INTENTS,
         route_intent,
     )
     KNOWLEDGE_LAYER_AVAILABLE = True
@@ -122,7 +116,7 @@ except ImportError as e:
 
 # 7. Enterprise Guard - Security & Behavior Layer
 try:
-    from enterprise import get_enterprise_guard, EnterpriseGuard
+    from enterprise import get_enterprise_guard
     ENTERPRISE_GUARD_AVAILABLE = True
     enterprise_guard = get_enterprise_guard()
     logger.info("✅ Enterprise Guard loaded - 10 security modules")
@@ -1325,7 +1319,6 @@ async def chat_with_webpage(request: WebChatRequest):
         # ELASTIC: 3 retry attempts with increasing timeouts
         timeouts = [120.0, 240.0, 360.0]
         answer = None
-        last_error = None
         attempt = 0
         
         for timeout in timeouts:
@@ -1338,7 +1331,6 @@ async def chat_with_webpage(request: WebChatRequest):
                 logger.info(f"[Web Chat] Success on attempt {attempt}")
                 break
             except Exception as e:
-                last_error = str(e)
                 logger.warning(f"[Web Chat] Attempt {attempt} failed: {e}")
                 if attempt < len(timeouts):
                     await asyncio.sleep(1)  # Brief pause before retry
@@ -2106,7 +2098,7 @@ async def text_to_speech(req: TTSRequest):
             iter([audio_data]),
             media_type="audio/mpeg",
             headers={
-                "Content-Disposition": f"inline; filename=speech.mp3",
+                "Content-Disposition": "inline; filename=speech.mp3",
                 "X-Processing-Time": f"{processing_time:.3f}s",
                 "X-Voice-Used": voice,
                 "X-Text-Length": str(len(req.text))
@@ -2150,7 +2142,7 @@ async def voice_conversation(req: VoiceConversationRequest, request: Request):
     5. Return audio response
     """
     start_time = time.time()
-    user_id = req.user_id or request.headers.get("X-User-ID") or "anonymous"
+    # user_id available via: req.user_id or request.headers.get("X-User-ID")
     
     try:
         import edge_tts
@@ -2294,6 +2286,6 @@ _whisper_model_conv = None
 if __name__ == "__main__":
     import uvicorn
     logger.info(f"🌊 Ocean Core Full v5.0.0 starting on port {PORT}")
-    logger.info(f"⚙️ Zürich Engine v1.0 - 9-stage deterministic reasoning")
-    logger.info(f"🧠 Trinity Debate v1.0 - 5-persona AI debate")
+    logger.info("⚙️ Zürich Engine v1.0 - 9-stage deterministic reasoning")
+    logger.info("🧠 Trinity Debate v1.0 - 5-persona AI debate")
     uvicorn.run(app, host="0.0.0.0", port=PORT)

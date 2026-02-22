@@ -83,7 +83,7 @@ class IntegrityFirewall:
         """Generate user-facing warning."""
         if result.safe:
             return ""
-        return f"⚠️ Kërkesa juaj përmban elementë të dyshimtë dhe nuk mund të përpunohet."
+        return "⚠️ Kërkesa juaj përmban elementë të dyshimtë dhe nuk mund të përpunohet."
 
 
 # Singleton

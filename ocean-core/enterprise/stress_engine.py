@@ -7,7 +7,7 @@ Ultra-light: ~65 lines | Load awareness | Graceful degradation
 """
 
 from dataclasses import dataclass
-from typing import Optional
+
 import time
 
 

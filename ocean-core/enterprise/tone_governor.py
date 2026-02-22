@@ -7,7 +7,7 @@ Ultra-light: ~60 lines | Tone templates | Style rules
 """
 
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Dict
 from enum import Enum
 
 
