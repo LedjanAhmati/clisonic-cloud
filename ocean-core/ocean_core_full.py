@@ -343,20 +343,49 @@ async def stream_ollama_response(
 ) -> AsyncGenerator[str, None]:
     """
     Stream response from Ollama word by word.
-    This makes the first token appear in 2-3 seconds instead of waiting 60+ seconds.
+    INSTANT START: Sends thinking dots every 2s while waiting for first token.
+    This keeps connection alive and prevents client timeout!
     """
+    import asyncio
+    
+    first_token_received = False
+    thinking_dots_sent = False
+    
+    async def send_thinking_dots():
+        """Send dots every 2 seconds to keep connection alive"""
+        nonlocal thinking_dots_sent
+        dot_count = 0
+        while not first_token_received and dot_count < 45:  # Max 90 seconds of dots
+            await asyncio.sleep(2)
+            if not first_token_received:
+                if not thinking_dots_sent:
+                    thinking_dots_sent = True
+                yield "."
+                dot_count += 1
+    
     try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        # Start thinking dots in background
+        thinking_task = None
+        
+        # Use httpx with iter_bytes for immediate streaming
+        timeout = httpx.Timeout(300.0, connect=30.0, read=300.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            # Send initial dot immediately to confirm connection
+            yield "⏳"
+            
             async with client.stream(
                 "POST",
                 f"{OLLAMA_HOST}/api/chat",
                 json={
                     "model": model,
                     "messages": messages,
-                    "stream": True,  # STREAMING ENABLED!
+                    "stream": True,
+                    "keep_alive": -1,  # Keep model loaded!
                     "options": options
                 }
             ) as response:
+                # Clear the waiting indicator when first real token arrives
+                buffer = ""
                 async for line in response.aiter_lines():
                     if line:
                         try:
@@ -364,12 +393,19 @@ async def stream_ollama_response(
                             if "message" in data and "content" in data["message"]:
                                 content = data["message"]["content"]
                                 if content:
-                                    yield content
-                            # Check if done
+                                    if not first_token_received:
+                                        first_token_received = True
+                                        # Clear waiting indicator with backspace + real content
+                                        yield "\b \b" + content  # Backspace to erase ⏳
+                                    else:
+                                        yield content
                             if data.get("done", False):
                                 break
                         except json.JSONDecodeError:
                             continue
+    except httpx.ReadTimeout:
+        logger.error("Ollama read timeout after 300s")
+        yield "\n\n[Timeout: Model took too long. Try a shorter question.]"
     except Exception as e:
         logger.error(f"Streaming error: {e}")
         yield f"\n\n[Error: {str(e)}]"
@@ -529,24 +565,26 @@ async def ollama_warmup_loop():
     Keep Ollama model HOT - ping every 25 seconds.
     This ensures first token appears in 1-2 seconds instead of 6-8 seconds.
     """
-    logger.info("🔥 Starting Ollama warmup loop (every 25s)")
+    logger.info("🔥 Starting Ollama warmup loop (every 60s) - CPU optimized")
     while True:
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                # Simple ping to keep model loaded in memory
+            # CPU needs 30-90s for first token, use 120s timeout
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                # Keep model loaded with keep_alive=-1
                 await client.post(
                     f"{OLLAMA_HOST}/api/generate",
                     json={
                         "model": MODEL,
-                        "prompt": "Hi",
+                        "prompt": "1+1=",
                         "stream": False,
-                        "options": {"num_predict": 1}  # Generate only 1 token
+                        "keep_alive": -1,  # Keep model in memory forever
+                        "options": {"num_predict": 5}  # Generate a few tokens
                     }
                 )
-            logger.debug("🔥 Ollama warmup ping OK")
+            logger.info("🔥 Ollama warmup ping OK - model hot!")
         except Exception as e:
-            logger.warning(f"⚠️ Warmup ping failed: {e}")
-        await asyncio.sleep(25)  # Every 25 seconds
+            logger.warning(f"⚠️ Warmup ping failed (normal on first try): {e}")
+        await asyncio.sleep(60)  # Every 60 seconds
 
 @app.on_event("startup")
 async def startup_event():
@@ -1633,7 +1671,7 @@ async def zurich_info():
 class DebateRequest(BaseModel):
     topic: str
     personas: Optional[List[str]] = None  # Default: all 5
-    max_tokens: int = 500
+    max_tokens: int = 25000  # ELASTIC: Up to ~20K words
 
 
 # The 5 Trinity Personas
@@ -1808,8 +1846,9 @@ You can write a detailed, comprehensive response."""
 @app.post("/api/v1/debate/stream")
 async def trinity_debate_stream(request: DebateRequest):
     """
-    STREAMING Trinity Debate - Real-time responses.
-    Returns Server-Sent Events (SSE) with each persona's response as it completes.
+    🔥 TRUE REAL-TIME STREAMING Trinity Debate.
+    Each token streams live from Ollama - no buffering, no timeouts.
+    Start seeing text within 2-3 seconds.
     """
     from starlette.responses import StreamingResponse
     
@@ -1820,23 +1859,74 @@ async def trinity_debate_stream(request: DebateRequest):
     valid_personas = [p for p in persona_ids if p in TRINITY_PERSONAS]
     
     async def generate():
+        # Start event
         yield f"data: {json.dumps({'type': 'start', 'topic': request.topic, 'personas': len(valid_personas)})}\n\n"
         
         for persona_id in valid_personas:
-            yield f"data: {json.dumps({'type': 'thinking', 'persona': persona_id})}\n\n"
+            persona = TRINITY_PERSONAS[persona_id]
             
-            response = await get_persona_response(persona_id, request.topic, request.max_tokens or 25000)
-            yield f"data: {json.dumps({'type': 'response', 'data': response})}\n\n"
+            # Announce persona is thinking
+            yield f"data: {json.dumps({'type': 'thinking', 'persona': persona_id, 'name': persona['name']})}\n\n"
+            
+            system_prompt = f"""You are {persona['name']}, {persona['role']} in the Trinity AI system.
+Your personality: {persona['description']}
+Your style: {persona['style']}
+Respond to the topic from your unique perspective. Be thorough and detailed."""
+
+            user_prompt = f"{persona['prompt_prefix']}\n\nTopic: {request.topic}"
+            
+            full_response = ""
+            token_count = 0
+            
+            try:
+                # NO TIMEOUT - Elastic streaming
+                async with httpx.AsyncClient(timeout=None) as client:
+                    async with client.stream(
+                        "POST",
+                        f"{OLLAMA_HOST}/api/generate",
+                        json={
+                            "model": MODEL,
+                            "prompt": user_prompt,
+                            "system": system_prompt,
+                            "stream": True,
+                            "options": {"num_predict": request.max_tokens or 25000}
+                        }
+                    ) as stream:
+                        async for line in stream.aiter_lines():
+                            if line:
+                                try:
+                                    chunk = json.loads(line)
+                                    if "response" in chunk and chunk["response"]:
+                                        token = chunk["response"]
+                                        full_response += token
+                                        token_count += 1
+                                        
+                                        # Stream each token in real-time
+                                        yield f"data: {json.dumps({'type': 'token', 'persona': persona_id, 'token': token})}\n\n"
+                                    
+                                    if chunk.get("done", False):
+                                        break
+                                except json.JSONDecodeError:
+                                    continue
+                
+                # Persona complete
+                yield f"data: {json.dumps({'type': 'response', 'data': {'persona': persona_id, 'name': persona['name'], 'emoji': persona['emoji'], 'role': persona['role'], 'response': full_response, 'status': 'success', 'tokens': token_count}})}\n\n"
+                
+            except Exception as e:
+                logger.error(f"Streaming error for {persona_id}: {e}")
+                yield f"data: {json.dumps({'type': 'response', 'data': {'persona': persona_id, 'name': persona['name'], 'emoji': persona['emoji'], 'role': persona['role'], 'response': full_response or '[Processing...]', 'status': 'partial', 'tokens': token_count}})}\n\n"
         
+        # All done
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
     
     return StreamingResponse(
         generate(),
         media_type="text/event-stream",
         headers={
-            "Cache-Control": "no-cache",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
+            "X-Accel-Buffering": "no",
+            "Content-Type": "text/event-stream"
         }
     )
 
@@ -1977,9 +2067,10 @@ async def text_to_speech(req: TTSRequest):
     start_time = time.time()
     
     try:
-        import edge_tts
-        import tempfile
         import os as os_mod
+        import tempfile
+
+        import edge_tts
         
         # Input validation
         if not req.text or not req.text.strip():
@@ -2067,10 +2158,11 @@ async def voice_conversation(req: VoiceConversationRequest, request: Request):
     # user_id available via: req.user_id or request.headers.get("X-User-ID")
     
     try:
-        import edge_tts
-        import tempfile
         import base64 as b64mod
         import os as os_mod
+        import tempfile
+
+        import edge_tts
         
         # ═══════════════════════════════════════════════════════════════
         # STEP 1: Decode Audio

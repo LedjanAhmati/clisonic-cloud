@@ -35,6 +35,7 @@ export default function DebatePage() {
   const [activeSpeaker, setActiveSpeaker] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
+  const [streamingText, setStreamingText] = useState<Record<string, string>>({})
   const abortRef = useRef<AbortController | null>(null)
 
   const startDebate = async () => {
@@ -50,6 +51,7 @@ export default function DebatePage() {
     setError(null)
     setResponses([])
     setProgress(0)
+    setStreamingText({})
     
     try {
       // Use streaming endpoint for elastic responses
@@ -82,8 +84,20 @@ export default function DebatePage() {
             
             if (data.type === 'thinking') {
               setActiveSpeaker(data.persona)
+              setStreamingText(prev => ({ ...prev, [data.persona]: '' }))
+            } else if (data.type === 'token') {
+              // Real-time token streaming
+              setStreamingText(prev => ({
+                ...prev,
+                [data.persona]: (prev[data.persona] || '') + data.token
+              }))
             } else if (data.type === 'response') {
               setResponses(prev => [...prev, data.data])
+              setStreamingText(prev => {
+                const newState = { ...prev }
+                delete newState[data.data.persona]
+                return newState
+              })
               completedCount++
               setProgress((completedCount / PERSONAS.length) * 100)
               setActiveSpeaker(null)
@@ -258,6 +272,30 @@ export default function DebatePage() {
         {error && (
           <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4 text-red-400 text-sm mb-6">
             {error}
+          </div>
+        )}
+
+        {/* LIVE Streaming Response */}
+        {activeSpeaker && streamingText[activeSpeaker] && (
+          <div className="bg-zinc-900 rounded-xl p-5 border border-blue-600/50 mb-6 animate-pulse-slow">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 bg-blue-900/30 rounded-lg flex items-center justify-center text-xl flex-shrink-0">
+                {PERSONAS.find(p => p.id === activeSpeaker)?.emoji || '🤖'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="font-medium text-blue-400">
+                    {PERSONAS.find(p => p.id === activeSpeaker)?.name}
+                  </span>
+                  <span className="text-xs text-blue-500/70">Streaming live...</span>
+                  <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                </div>
+                <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap">
+                  {streamingText[activeSpeaker]}
+                  <span className="inline-block w-1.5 h-4 bg-blue-400 ml-0.5 animate-blink" />
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
