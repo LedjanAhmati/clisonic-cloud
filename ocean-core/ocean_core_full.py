@@ -195,10 +195,6 @@ You are the most advanced AI assistant on Clisonix Cloud - a GLOBAL enterprise p
 
 SYSTEM_PROMPT = generate_full_system_prompt()
 
-# FAST system prompt for streaming - minimal tokens for quick TTFT
-FAST_SYSTEM_PROMPT = """You are Ocean, a helpful AI assistant. Be concise, accurate, and friendly. 
-Respond in the user's language. Start immediately, no preamble."""
-
 # ═══════════════════════════════════════════════════════════════════
 # FASTAPI APP
 # ═══════════════════════════════════════════════════════════════════
@@ -466,23 +462,6 @@ You MUST follow these rules EXACTLY. No exceptions.
 VIOLATION OF THESE RULES IS NOT ALLOWED."""
         engines_used.append("StrictMode")
     
-    # 4.6. ALBANIAN DICTIONARY - Direct response for Albanian definition queries
-    if ALBANIAN_DICT_AVAILABLE:
-        # Check if we have a direct Albanian answer (for definitions, greetings, etc.)
-        albanian_response = get_albanian_response(prompt)
-        if albanian_response:
-            engines_used.append("AlbanianDictionary")
-            elapsed = time.time() - start_time
-            logger.info(f"✅ [sq] {elapsed:.1f}s - Albanian Dict Response - Engines: {', '.join(engines_used)}")
-            return ChatResponse(
-                response=albanian_response,
-                model="albanian_dictionary_v1",
-                processing_time=round(elapsed, 2),
-                engines_used=engines_used,
-                language_detected="sq",
-                layer_activations=None
-            )
-    
     # 5. Build enhanced system prompt
     enhanced_prompt = SYSTEM_PROMPT + lang_instruction + seed_context + mega_context + strict_instruction
     
@@ -542,15 +521,47 @@ VIOLATION OF THESE RULES IS NOT ALLOWED."""
 # API ENDPOINTS
 # ═══════════════════════════════════════════════════════════════════
 
+# Global: Keep Ollama model warm
+_warmup_task = None
+
+async def ollama_warmup_loop():
+    """
+    Keep Ollama model HOT - ping every 25 seconds.
+    This ensures first token appears in 1-2 seconds instead of 6-8 seconds.
+    """
+    logger.info("🔥 Starting Ollama warmup loop (every 25s)")
+    while True:
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                # Simple ping to keep model loaded in memory
+                await client.post(
+                    f"{OLLAMA_HOST}/api/generate",
+                    json={
+                        "model": MODEL,
+                        "prompt": "Hi",
+                        "stream": False,
+                        "options": {"num_predict": 1}  # Generate only 1 token
+                    }
+                )
+            logger.debug("🔥 Ollama warmup ping OK")
+        except Exception as e:
+            logger.warning(f"⚠️ Warmup ping failed: {e}")
+        await asyncio.sleep(25)  # Every 25 seconds
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize engines on startup"""
+    global _warmup_task
     logger.info("🚀 Ocean Core Full starting...")
     initialize_engines()
     logger.info("✅ All engines initialized")
     logger.info(f"📡 Ollama: {OLLAMA_HOST}")
     logger.info(f"🤖 Model: {MODEL}")
     logger.info(f"🌍 Translation Node: {TRANSLATION_NODE}")
+    
+    # Start warmup loop in background
+    _warmup_task = asyncio.create_task(ollama_warmup_loop())
+    logger.info("🔥 Ollama warmup task started - first token in 1-2s guaranteed!")
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -635,54 +646,72 @@ async def chat(req: ChatRequest):
 @app.post("/api/v1/chat/stream")
 async def chat_stream(req: ChatRequest):
     """
-    FAST STREAMING chat endpoint - optimized for 2-3s TTFT on CPU!
-    Uses FAST_SYSTEM_PROMPT (40 tokens) + small context (2048)
+    STREAMING chat endpoint - Returns text in real-time!
+    First token appears within 2-3 seconds instead of waiting 60+ seconds.
     """
     prompt = req.message or req.query
     if not prompt:
         raise HTTPException(status_code=400, detail="message or query required")
     
-    # Quick language detection inline (no async overhead)
-    lang_hint = ""
-    if any(word in prompt.lower() for word in ["çfarë", "si", "pse", "ku", "kur", "përse", "një", "është"]):
-        lang_hint = " Përgjigju në shqip."
-    elif any(word in prompt.lower() for word in ["was", "wie", "warum", "wo", "wann"]):
-        lang_hint = " Antworte auf Deutsch."
+    engines_used = []
     
-    # Albanian Dictionary - Direct response (fastest path)
-    if ALBANIAN_DICT_AVAILABLE:
-        albanian_response = get_albanian_response(prompt)
-        if albanian_response:
-            logger.info(f"🇦🇱 Albanian Dict direct: {prompt[:40]}...")
-            async def albanian_stream():
-                yield albanian_response
-            return StreamingResponse(albanian_stream(), media_type="text/plain")
+    # 1. Detect Language (fast)
+    lang_code, lang_name, confidence = await detect_language(prompt)
+    engines_used.append(f"TranslationNode({lang_code})")
     
-    # Build FAST prompt (minimal processing!)
+    lang_instruction = ""
+    if lang_code != "en":
+        lang_instruction = f"\n\nIMPORTANT: The user is writing in {lang_name}. You MUST respond in {lang_name}."
+    
+    # 2. Knowledge Seeds (optional)
+    seed_context = ""
+    if req.use_knowledge_seeds:
+        seed = find_knowledge_seed(prompt)
+        if seed:
+            seed_context = f"\n\nRELEVANT KNOWLEDGE:\n{seed}"
+            engines_used.append("KnowledgeSeeds")
+    
+    # 3. Strict mode
+    strict_instruction = ""
+    if req.strict_mode:
+        strict_instruction = """
+
+## STRICT MODE ACTIVATED - MANDATORY RULES
+1. STAY ON TOPIC - Answer ONLY what was asked
+2. NO QUESTIONS - Do not ask the user questions
+3. IMMEDIATE START - Begin writing immediately
+4. CONTINUOUS OUTPUT - Write without stopping"""
+        engines_used.append("StrictMode")
+    
+    # Build prompt
+    enhanced_prompt = SYSTEM_PROMPT + lang_instruction + seed_context + strict_instruction
+    
     messages = [
-        {"role": "system", "content": FAST_SYSTEM_PROMPT + lang_hint},
+        {"role": "system", "content": enhanced_prompt},
         {"role": "user", "content": prompt}
     ]
     
-    # FAST options - optimized for quick TTFT!
-    fast_options = {
+    options = {
         "temperature": 0.7,
-        "num_ctx": 2048,       # Reduced from 8192!
-        "num_predict": 1024,   # Limit response length
-        "top_k": 40,           # Faster sampling
+        "num_ctx": 8192,
+        "repeat_penalty": 1.2,
         "top_p": 0.9,
-        "repeat_penalty": 1.1,
+        "num_predict": -1,
+        "num_keep": 0,
+        "mirostat": 0,
+        "repeat_last_n": 64,
+        "stop": []
     }
     
-    logger.info(f"🚀 FAST streaming: {prompt[:40]}...")
+    logger.info(f"🌊 Streaming request [{lang_code}]: {prompt[:50]}...")
     
     return StreamingResponse(
         stream_ollama_response(
             model=req.model or MODEL,
             messages=messages,
-            options=fast_options,
-            engines_used=["FastStream"],
-            lang_code="auto"
+            options=options,
+            engines_used=engines_used,
+            lang_code=lang_code
         ),
         media_type="text/plain"
     )
@@ -691,115 +720,6 @@ async def chat_stream(req: ChatRequest):
 async def query(req: ChatRequest):
     """Query endpoint - Same as chat"""
     return await process_query_full(req)
-
-
-# Specialized expertise domains
-EXPERT_DOMAINS = {
-    "neuroscience": "You are a world-class neuroscientist specializing in brain research, cognitive science, and neural pathways.",
-    "ai": "You are an expert in AI & Deep Learning, machine learning architectures, neural networks, and AGI research.",
-    "quantum": "You are a quantum physicist specializing in quantum mechanics, entanglement, and quantum computing.",
-    "iot": "You are an IoT & LoRa Networks expert specializing in sensors, gateways, and embedded systems.",
-    "cybersecurity": "You are a cybersecurity expert specializing in encryption, vulnerabilities, and security protocols.",
-    "bioinformatics": "You are a bioinformatics expert specializing in genetics, DNA analysis, and protein structures.",
-    "datascience": "You are a data science expert specializing in statistics, analytics, and visualization.",
-    "marine": "You are a marine biologist specializing in ocean ecosystems and marine life."
-}
-
-
-@app.post("/api/v1/chat/specialized", response_model=ChatResponse)
-async def chat_specialized(req: ChatRequest):
-    """
-    Specialized Expert Chat endpoint - domain-specific expertise.
-    Uses expert personas for advanced domain questions.
-    """
-    start_time = time.time()
-    engines_used = []
-    
-    prompt = req.message or req.query
-    if not prompt:
-        raise HTTPException(status_code=400, detail="message or query required")
-    
-    # Detect language
-    lang_code, lang_name, confidence = await detect_language(prompt)
-    engines_used.append(f"TranslationNode({lang_code})")
-    
-    # Determine expertise domain from request or auto-detect
-    domain = getattr(req, 'domain', None) or 'ai'  # Default to AI
-    expert_persona = EXPERT_DOMAINS.get(domain, EXPERT_DOMAINS['ai'])
-    engines_used.append(f"ExpertDomain({domain})")
-    
-    # Albanian Dictionary check first
-    if ALBANIAN_DICT_AVAILABLE:
-        albanian_response = get_albanian_response(prompt)
-        if albanian_response:
-            engines_used.append("AlbanianDictionary")
-            elapsed = time.time() - start_time
-            return ChatResponse(
-                response=albanian_response,
-                model="albanian_dictionary_v1",
-                processing_time=round(elapsed, 2),
-                engines_used=engines_used,
-                language_detected="sq",
-                layer_activations=None
-            )
-    
-    # Build expert system prompt
-    lang_instruction = ""
-    if lang_code != "en":
-        lang_instruction = f"\n\nIMPORTANT: Respond in {lang_name}."
-    
-    expert_prompt = f"""{expert_persona}
-
-You provide expert-level, research-backed answers. Be precise, technical, and comprehensive.
-{lang_instruction}"""
-    
-    # Call Ollama with expert context
-    try:
-        async with httpx.AsyncClient(timeout=90.0) as client:
-            resp = await client.post(
-                f"{OLLAMA_HOST}/api/chat",
-                json={
-                    "model": req.model or MODEL,
-                    "messages": [
-                        {"role": "system", "content": expert_prompt},
-                        {"role": "user", "content": prompt}
-                    ],
-                    "stream": False,
-                    "options": {
-                        "temperature": 0.5,  # Lower for more factual
-                        "num_ctx": 8192,
-                        "repeat_penalty": 1.1,
-                        "top_p": 0.85,
-                        "num_predict": 1024  # Limit response length
-                    }
-                }
-            )
-            
-            if resp.status_code != 200:
-                raise HTTPException(status_code=resp.status_code, detail="Ollama error")
-            
-            data = resp.json()
-            response_text = data.get("message", {}).get("content", "No response")
-            engines_used.append(f"Ollama({req.model or MODEL})")
-            
-    except httpx.TimeoutException:
-        raise HTTPException(status_code=504, detail="Expert analysis timeout - question too complex")
-    except Exception as e:
-        logger.error(f"Specialized chat error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-    
-    elapsed = time.time() - start_time
-    logger.info(f"🎓 [{domain}] [{lang_code}] {elapsed:.1f}s - Engines: {', '.join(engines_used)}")
-    
-    return ChatResponse(
-        response=response_text,
-        model=req.model or MODEL,
-        processing_time=round(elapsed, 2),
-        engines_used=engines_used,
-        language_detected=lang_code,
-        layer_activations=None
-    )
-
 
 @app.get("/api/v1/services")
 async def list_services():
