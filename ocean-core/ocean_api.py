@@ -1440,6 +1440,376 @@ async def health_check():
     }
 
 
+# =============================================================================
+# AI PROCESSING ENDPOINTS
+# =============================================================================
+
+@app.post(f"{API_PREFIX}/ai/sentiment")
+async def analyze_sentiment(request: Request):
+    """
+    Analyze sentiment and emotions in text
+    
+    Body: {"text": "Your text here", "use_llm": true}
+    """
+    try:
+        from ai_processes import get_sentiment_analyzer
+        
+        data = await request.json()
+        text = data.get("text", "")
+        use_llm = data.get("use_llm", True)
+        
+        if not text:
+            raise HTTPException(status_code=400, detail="Text is required")
+        
+        analyzer = get_sentiment_analyzer()
+        await analyzer.initialize()
+        result = await analyzer.analyze(text, use_llm=use_llm)
+        
+        return {
+            "success": True,
+            "result": result.to_dict(),
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Sentiment analysis error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post(f"{API_PREFIX}/ai/summarize")
+async def summarize_text(request: Request):
+    """
+    Generate summary of text
+    
+    Body: {"text": "Long text...", "type": "hybrid", "target_ratio": 0.3}
+    Types: extractive, abstractive, hybrid, bullet_points, tldr
+    """
+    try:
+        from ai_processes import get_text_summarizer, SummaryType
+        
+        data = await request.json()
+        text = data.get("text", "")
+        summary_type = data.get("type", "hybrid")
+        target_ratio = data.get("target_ratio", 0.3)
+        max_sentences = data.get("max_sentences", 5)
+        
+        if not text:
+            raise HTTPException(status_code=400, detail="Text is required")
+        
+        # Map string to enum
+        type_map = {
+            "extractive": SummaryType.EXTRACTIVE,
+            "abstractive": SummaryType.ABSTRACTIVE,
+            "hybrid": SummaryType.HYBRID,
+            "bullet_points": SummaryType.BULLET_POINTS,
+            "tldr": SummaryType.TLDR
+        }
+        stype = type_map.get(summary_type, SummaryType.HYBRID)
+        
+        summarizer = get_text_summarizer()
+        await summarizer.initialize()
+        result = await summarizer.summarize(
+            text, 
+            summary_type=stype,
+            target_ratio=target_ratio,
+            max_sentences=max_sentences
+        )
+        
+        return {
+            "success": True,
+            "result": result.to_dict(),
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Summarization error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post(f"{API_PREFIX}/ai/entities")
+async def extract_entities(request: Request):
+    """
+    Extract named entities from text (NER)
+    
+    Body: {"text": "Text with names, places, dates...", "use_llm": true}
+    """
+    try:
+        from ai_processes import get_entity_extractor
+        
+        data = await request.json()
+        text = data.get("text", "")
+        use_llm = data.get("use_llm", True)
+        
+        if not text:
+            raise HTTPException(status_code=400, detail="Text is required")
+        
+        extractor = get_entity_extractor()
+        await extractor.initialize()
+        result = await extractor.extract(text, use_llm=use_llm)
+        
+        return {
+            "success": True,
+            "result": result.to_dict(),
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Entity extraction error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post(f"{API_PREFIX}/ai/classify")
+async def classify_text(request: Request):
+    """
+    Classify text into categories
+    
+    Body: {"text": "Text to classify...", "use_llm": true}
+    """
+    try:
+        from ai_processes import get_text_classifier
+        
+        data = await request.json()
+        text = data.get("text", "")
+        use_llm = data.get("use_llm", True)
+        
+        if not text:
+            raise HTTPException(status_code=400, detail="Text is required")
+        
+        classifier = get_text_classifier()
+        await classifier.initialize()
+        result = await classifier.classify(text, use_llm=use_llm)
+        
+        return {
+            "success": True,
+            "result": result.to_dict(),
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Classification error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post(f"{API_PREFIX}/ai/analyze-code")
+async def analyze_code(request: Request):
+    """
+    Analyze source code structure and quality
+    
+    Body: {"code": "def hello():\\n    pass", "language": "python"}
+    """
+    try:
+        from ai_processes import get_code_analyzer
+        
+        data = await request.json()
+        code = data.get("code", "")
+        language = data.get("language")  # Optional, auto-detect if not provided
+        
+        if not code:
+            raise HTTPException(status_code=400, detail="Code is required")
+        
+        analyzer = get_code_analyzer()
+        await analyzer.initialize()
+        result = await analyzer.analyze(code, language=language)
+        
+        return {
+            "success": True,
+            "result": result.to_dict(),
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Code analysis error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post(f"{API_PREFIX}/ai/detect-language")
+async def detect_language(request: Request):
+    """
+    Detect language of text
+    
+    Body: {"text": "Përshëndetje, si jeni?"}
+    """
+    try:
+        from ai_processes import get_language_detector
+        
+        data = await request.json()
+        text = data.get("text", "")
+        
+        if not text:
+            raise HTTPException(status_code=400, detail="Text is required")
+        
+        detector = get_language_detector()
+        await detector.initialize()
+        result = await detector.detect(text)
+        
+        return {
+            "success": True,
+            "result": result.to_dict(),
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Language detection error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post(f"{API_PREFIX}/ai/intent")
+async def classify_intent(request: Request):
+    """
+    Classify user intent from message
+    
+    Body: {"message": "I want to order a pizza", "use_llm": true}
+    """
+    try:
+        from ai_processes import get_intent_classifier
+        
+        data = await request.json()
+        message = data.get("message", "")
+        use_llm = data.get("use_llm", True)
+        
+        if not message:
+            raise HTTPException(status_code=400, detail="Message is required")
+        
+        classifier = get_intent_classifier()
+        await classifier.initialize()
+        result = await classifier.classify(message, use_llm=use_llm)
+        
+        return {
+            "success": True,
+            "result": result.to_dict(),
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Intent classification error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post(f"{API_PREFIX}/ai/process")
+async def unified_ai_process(request: Request):
+    """
+    Unified AI processing endpoint - run multiple analyses at once
+    
+    Body: {
+        "text": "Text to analyze...",
+        "processes": ["sentiment", "entities", "language", "classify"]
+    }
+    """
+    try:
+        from ai_processes import (
+            get_sentiment_analyzer, get_entity_extractor,
+            get_language_detector, get_text_classifier,
+            get_text_summarizer, get_intent_classifier
+        )
+        
+        data = await request.json()
+        text = data.get("text", "")
+        processes = data.get("processes", ["sentiment", "language"])
+        
+        if not text:
+            raise HTTPException(status_code=400, detail="Text is required")
+        
+        results = {}
+        
+        if "sentiment" in processes:
+            analyzer = get_sentiment_analyzer()
+            await analyzer.initialize()
+            results["sentiment"] = (await analyzer.analyze(text)).to_dict()
+        
+        if "entities" in processes:
+            extractor = get_entity_extractor()
+            await extractor.initialize()
+            results["entities"] = (await extractor.extract(text)).to_dict()
+        
+        if "language" in processes:
+            detector = get_language_detector()
+            await detector.initialize()
+            results["language"] = (await detector.detect(text)).to_dict()
+        
+        if "classify" in processes:
+            classifier = get_text_classifier()
+            await classifier.initialize()
+            results["classification"] = (await classifier.classify(text)).to_dict()
+        
+        if "summarize" in processes:
+            summarizer = get_text_summarizer()
+            await summarizer.initialize()
+            results["summary"] = (await summarizer.summarize(text)).to_dict()
+        
+        if "intent" in processes:
+            intent_clf = get_intent_classifier()
+            await intent_clf.initialize()
+            results["intent"] = (await intent_clf.classify(text)).to_dict()
+        
+        return {
+            "success": True,
+            "text_preview": text[:200] + "..." if len(text) > 200 else text,
+            "processes_run": list(results.keys()),
+            "results": results,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Unified AI processing error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get(f"{API_PREFIX}/ai/capabilities")
+async def ai_capabilities():
+    """List all available AI processing capabilities"""
+    return {
+        "capabilities": [
+            {
+                "name": "sentiment",
+                "endpoint": f"{API_PREFIX}/ai/sentiment",
+                "method": "POST",
+                "description": "Sentiment and emotion analysis"
+            },
+            {
+                "name": "summarize",
+                "endpoint": f"{API_PREFIX}/ai/summarize",
+                "method": "POST",
+                "description": "Text summarization"
+            },
+            {
+                "name": "entities",
+                "endpoint": f"{API_PREFIX}/ai/entities",
+                "method": "POST",
+                "description": "Named Entity Recognition"
+            },
+            {
+                "name": "classify",
+                "endpoint": f"{API_PREFIX}/ai/classify",
+                "method": "POST",
+                "description": "Text classification"
+            },
+            {
+                "name": "analyze-code",
+                "endpoint": f"{API_PREFIX}/ai/analyze-code",
+                "method": "POST",
+                "description": "Source code analysis"
+            },
+            {
+                "name": "detect-language",
+                "endpoint": f"{API_PREFIX}/ai/detect-language",
+                "method": "POST",
+                "description": "Language detection"
+            },
+            {
+                "name": "intent",
+                "endpoint": f"{API_PREFIX}/ai/intent",
+                "method": "POST",
+                "description": "User intent classification"
+            },
+            {
+                "name": "process",
+                "endpoint": f"{API_PREFIX}/ai/process",
+                "method": "POST",
+                "description": "Unified multi-process analysis"
+            }
+        ],
+        "version": "1.0.0",
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+# =============================================================================
+# END AI PROCESSING ENDPOINTS
+# =============================================================================
+
+
 @app.get(f"{API_PREFIX}/spec")
 async def api_spec():
     """OpenAPI specification"""

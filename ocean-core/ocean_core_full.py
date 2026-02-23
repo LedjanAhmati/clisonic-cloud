@@ -1888,8 +1888,9 @@ You can write a detailed, comprehensive response."""
 @app.post("/api/v1/debate/stream")
 async def trinity_debate_stream(request: DebateRequest):
     """
-    STREAMING Trinity Debate - Real-time responses.
-    Returns Server-Sent Events (SSE) with each persona's response as it completes.
+    STREAMING Trinity Debate - TRUE Real-time token-by-token responses.
+    Returns Server-Sent Events (SSE) with INSTANT token streaming from Ollama.
+    NO TIMEOUT - Elastic streaming for unlimited generation.
     """
     from starlette.responses import StreamingResponse
     
@@ -1900,13 +1901,63 @@ async def trinity_debate_stream(request: DebateRequest):
     valid_personas = [p for p in persona_ids if p in TRINITY_PERSONAS]
     
     async def generate():
+        # Start immediately
         yield f"data: {json.dumps({'type': 'start', 'topic': request.topic, 'personas': len(valid_personas)})}\n\n"
         
         for persona_id in valid_personas:
-            yield f"data: {json.dumps({'type': 'thinking', 'persona': persona_id})}\n\n"
+            persona = TRINITY_PERSONAS.get(persona_id)
+            if not persona:
+                continue
             
-            response = await get_persona_response(persona_id, request.topic, request.max_tokens or 25000)
-            yield f"data: {json.dumps({'type': 'response', 'data': response})}\n\n"
+            # Signal persona starting - INSTANT feedback
+            yield f"data: {json.dumps({'type': 'thinking', 'persona': persona_id, 'name': persona['name'], 'emoji': persona['emoji']})}\n\n"
+            
+            # Build prompts
+            system_prompt = f"""You are {persona['name']}, {persona['role']} in the Trinity AI system.
+Your personality: {persona['description']}
+Your style: {persona['style']}
+Respond to the topic from your unique perspective. Be thorough and insightful."""
+            
+            user_prompt = f"{persona['prompt_prefix']}\n\nTopic: {request.topic}"
+            
+            response_text = ""
+            token_count = 0
+            
+            try:
+                # NO TIMEOUT - Elastic streaming
+                async with httpx.AsyncClient(timeout=None) as client:
+                    async with client.stream(
+                        "POST",
+                        f"{OLLAMA_HOST}/api/generate",
+                        json={
+                            "model": MODEL,
+                            "prompt": user_prompt,
+                            "system": system_prompt,
+                            "stream": True,
+                            "options": {"num_predict": request.max_tokens or 25000}
+                        }
+                    ) as stream:
+                        async for line in stream.aiter_lines():
+                            if line:
+                                try:
+                                    chunk = json.loads(line)
+                                    if "response" in chunk:
+                                        token = chunk["response"]
+                                        response_text += token
+                                        token_count += 1
+                                        # Stream EVERY token immediately
+                                        yield f"data: {json.dumps({'type': 'token', 'persona': persona_id, 'token': token})}\n\n"
+                                    if chunk.get("done", False):
+                                        break
+                                except json.JSONDecodeError:
+                                    continue
+                
+                # Send completion for this persona
+                yield f"data: {json.dumps({'type': 'response', 'data': {'persona': persona_id, 'name': persona['name'], 'emoji': persona['emoji'], 'role': persona['role'], 'response': response_text, 'status': 'success', 'tokens': token_count}})}\n\n"
+                
+            except Exception as e:
+                logger.error(f"Debate stream error for {persona_id}: {e}")
+                yield f"data: {json.dumps({'type': 'response', 'data': {'persona': persona_id, 'name': persona['name'], 'emoji': persona['emoji'], 'role': persona['role'], 'response': f'[{persona[\"name\"]} encountered an issue: {str(e)[:100]}]', 'status': 'error'}})}\n\n"
         
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
     

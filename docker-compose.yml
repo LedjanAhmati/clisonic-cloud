@@ -198,8 +198,7 @@ services:
       context: ./ocean-core
       dockerfile: Dockerfile
     container_name: clisonix-ocean-core
-    env_file:
-      - .env
+    # env_file removed - using environment variables directly
     environment:
       PYTHONUNBUFFERED: "1"
       OCEAN_PORT: "8030"
