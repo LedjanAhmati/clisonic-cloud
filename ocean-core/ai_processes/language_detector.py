@@ -14,10 +14,10 @@ Features:
 import logging
 import re
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime
 from collections import Counter
+from enum import Enum
 
 logger = logging.getLogger(__name__)
 
