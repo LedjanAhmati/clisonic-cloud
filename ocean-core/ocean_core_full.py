@@ -1957,7 +1957,8 @@ Respond to the topic from your unique perspective. Be thorough and insightful.""
                 
             except Exception as e:
                 logger.error(f"Debate stream error for {persona_id}: {e}")
-                yield f"data: {json.dumps({'type': 'response', 'data': {'persona': persona_id, 'name': persona['name'], 'emoji': persona['emoji'], 'role': persona['role'], 'response': f'[{persona[\"name\"]} encountered an issue: {str(e)[:100]}]', 'status': 'error'}})}\n\n"
+                error_msg = f"[{persona['name']} encountered an issue: {str(e)[:100]}]"
+                yield f"data: {json.dumps({'type': 'response', 'data': {'persona': persona_id, 'name': persona['name'], 'emoji': persona['emoji'], 'role': persona['role'], 'response': error_msg, 'status': 'error'}})}\n\n"
         
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
     

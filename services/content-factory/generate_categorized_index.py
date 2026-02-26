@@ -12,7 +12,7 @@ from pathlib import Path
 
 import requests
 
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "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")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 REPO = "LedjanAhmati/clisonix-blog"
 BRANCH = "main"
 

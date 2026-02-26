@@ -282,38 +282,36 @@ body {
   
   .animate-fade-in {
     animation: fade-in 0.3s ease-out forwards;
-  
+  }
 
-    /* Blink cursor for streaming */
-    @keyframes blink {
-  
-      0%,
+  /* Blink cursor for streaming */
+  @keyframes blink {
+    0%,
       50% {
         opacity: 1;
       }
-  
+    
       51%,
       100% {
         opacity: 0;
       }
     }
-  
+    
     .animate-blink {
       animation: blink 1s step-end infinite;
     }
-  
+    
     @keyframes pulse-slow {
-  
-      0%,
+    0%,
       100% {
         border-color: rgba(59, 130, 246, 0.5);
       }
-  
+    
       50% {
         border-color: rgba(59, 130, 246, 0.8);
       }
     }
-  
+    
     .animate-pulse-slow {
       animation: pulse-slow 2s ease-in-out infinite;
     }

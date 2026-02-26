@@ -287,6 +287,7 @@ services:
       NODE_ENV: "production"
       # Use Docker internal network for server-side API calls
       API_INTERNAL_URL: "http://clisonix-api:8000"
+      VIDEO_GENERATOR_URL: "http://clisonix-video-generator:8029"
       # Client-side calls go through Nginx proxy
       NEXT_PUBLIC_API_BASE: "/api"
       # Clerk Authentication

@@ -89,8 +89,42 @@ class VideoProject:
 class ScriptGenerator:
     """
     Generates video scripts using BLERINA content patterns.
-    Uses verified knowledge base for EEG/BCI content.
+    Uses verified knowledge base for EEG/BCI content and History topics.
     """
+    
+    # History content templates for viral reels
+    HISTORY_TEMPLATES: Dict[str, Dict[str, any]] = {
+        "Perandoria Romake": {
+            "sections": [
+                {"title": "Fillimi", "narration": "Roma filloi si një qytet i vogël në vitin 753 para Krishtit. Por brenda 500 vitesh, do të bëhej perandoria më e madhe në histori.", "duration": 8},
+                {"title": "Ekspansioni", "narration": "Në kulmin e saj, Perandoria Romake kontrollonte 5 milionë kilometra katrorë - nga Britania në veri deri në Afrikën e Veriut në jug.", "duration": 8},
+                {"title": "Inovacionet", "narration": "Romakët ndërtuan rrugë, ujësjellësa dhe struktura që ende ekzistojnë sot. Koloseumi, një mrekulli inxhinierike, mbante 80,000 spektatorë.", "duration": 10},
+                {"title": "Ushtria", "narration": "Legionet romake ishin makina luftarake të pamposhtura. Disiplina, taktika dhe teknologjia i bënë ata invincible për shekuj.", "duration": 8},
+                {"title": "Rënia", "narration": "Por asnjë perandori nuk zgjat përgjithmonë. Korrupsioni, inflacioni dhe invazionet barbare çuan në rënien e Romës në vitin 476.", "duration": 10},
+                {"title": "Trashëgimia", "narration": "Megjithatë, trashëgimia e Romës jeton - në gjuhën tonë, ligjet, arkitekturën dhe kulturën. Roma vdiq, por idetë e saj jetojnë përgjithmonë.", "duration": 10}
+            ]
+        },
+        "Napoleon Bonaparte": {
+            "sections": [
+                {"title": "Fillimi", "narration": "Napoleon Bonaparte. Njeriu që shkoi nga një oficer i thjeshtë në Perandorin e Francës. Historia e tij është legjendarike.", "duration": 8},
+                {"title": "Rruga në Pushtet", "narration": "Në 1799, me vetëm 30 vjeç, Napoleon mori pushtetin në Francë përmes një grushtshteti. Ambicia e tij ishte e pakufishme.", "duration": 8},
+                {"title": "Fitoret", "narration": "Napoleon fitoi 60 nga 70 beteja. Gjenitë e tij ushtarake e bënë atë një nga komandantët më të mëdhenj në histori.", "duration": 9},
+                {"title": "Perandoria", "narration": "Në kulmin e pushtetit, Napoleon kontrollonte shumicën e Evropës. Nga Spanja në Poloni, emri i tij krijonte frikë dhe respekt.", "duration": 9},
+                {"title": "Waterloo", "narration": "Por në 1815, në fushën e Waterloo-s, perandoria e tij përfundoi. Një betejë, një humbje, fundi i një epoke.", "duration": 10},
+                {"title": "Trashëgimia", "narration": "Napoleon ndryshoi Evropën përgjithmonë. Kodi i tij civil, reformimet arsimore, dhe idetë revolucionare ende ndikojnë botën sot.", "duration": 10}
+            ]
+        },
+        "Lufta e Parë Botërore": {
+            "sections": [
+                {"title": "Shkëndija", "narration": "28 Qershor 1914. Një plumb në Sarajevë vrau Arkidukun Franz Ferdinand. Një moment që ndryshoi historinë përgjithmonë.", "duration": 9},
+                {"title": "Fillimi", "narration": "Brenda javësh, aleancat e vjetra shkuan në luftë. Austro-Hungaria, Gjermania, Rusia, Franca, Britania - e gjithë Europa u ndez.", "duration": 9},
+                {"title": "Transheatë", "narration": "Transheatë të gjata, tela me gjemba, gazra helmuese. Miliona ushtarë vuajtën në baltë dhe gjak për kilometra tokë.", "duration": 10},
+                {"title": "Teknologjia", "narration": "Ishte lufta e parë moderne. Tanke, avionë, submarine - teknologjia e vdekjes arriti nivele të reja tmerruese.", "duration": 9},
+                {"title": "Fundi", "narration": "11 Nëntor 1918, ora 11. Armëpushimi. Lufta mbaroi, por 20 milionë njerëz kishin vdekur. Një gjeneratë e humbur.", "duration": 10},
+                {"title": "Pasojat", "narration": "Traktati i Versajës. Perandori shkatërruan. Harta e Evropës u rishkrua. Dhe në hije, fara e Luftës së Dytë Botërore u mboll.", "duration": 10}
+            ]
+        }
+    }
     
     # Pre-written educational content for EEG BCIs
     EEG_BCI_CONTENT: Dict[str, Dict[str, str]] = {
@@ -197,11 +231,31 @@ Thank you for watching. To learn more, visit clisonix.com.
     def generate_script(self, topic: str, style: VideoStyle) -> List[VideoSection]:
         """Generate a video script for the given topic."""
         
+        # Check for history topics (Albanian language)
+        for hist_topic, template in self.HISTORY_TEMPLATES.items():
+            if hist_topic.lower() in topic.lower():
+                return self._generate_history_script(hist_topic, template)
+        
+        # Check for EEG/BCI content
         if "eeg" in topic.lower() or "bci" in topic.lower() or "brain" in topic.lower():
             return self._generate_eeg_bci_script(style)
         
         # Fallback generic script
         return self._generate_generic_script(topic, style)
+    
+    def _generate_history_script(self, topic: str, template: Dict) -> List[VideoSection]:
+        """Generate history video script from template."""
+        sections: List[VideoSection] = []
+        
+        for idx, section_data in enumerate(template["sections"]):
+            sections.append(VideoSection(
+                index=idx,
+                title=section_data["title"],
+                narration_text=section_data["narration"],
+                duration_seconds=section_data.get("duration", 8.0)
+            ))
+        
+        return sections
     
     def _generate_eeg_bci_script(self, style: VideoStyle) -> List[VideoSection]:
         """Generate EEG/BCI educational video script."""
